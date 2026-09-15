@@ -1,5 +1,5 @@
 export const FILE_BUCKET = "library-originals-v1";
-export const MAX_FILE_BYTES = 500_000_000;
+export const MAX_FILE_BYTES = 50_000_000;
 export const FILE_PAGE_SIZE = 12;
 export const TUS_CHUNK_BYTES = 6 * 1024 * 1024;
 
@@ -15,7 +15,7 @@ export function validateFileMetadata(name: unknown, size: unknown): FileValidati
   const contentType = Object.hasOwn(supportedTypes, extension) ? supportedTypes[extension] : undefined;
   if (!contentType) return { ok: false, message: "Envie um arquivo PDF, TXT ou Markdown (.md)." };
   if (typeof size !== "number" || !Number.isSafeInteger(size) || size < 1 || size > MAX_FILE_BYTES) {
-    return { ok: false, message: "O arquivo precisa ter conteúdo e no máximo 500 MB." };
+    return { ok: false, message: "O arquivo precisa ter conteúdo e no máximo 50 MB." };
   }
   return { ok: true, contentType };
 }
