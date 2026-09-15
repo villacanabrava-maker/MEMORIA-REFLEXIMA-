@@ -58,3 +58,37 @@ export function libraryUrl(query = "", page = 1): string {
   const suffix = params.toString();
   return `/biblioteca${suffix ? `?${suffix}` : ""}`;
 }
+
+export const MAX_IMPORT_BYTES = MAX_CONTENT * 4;
+export type TextImportResult =
+  | { ok: true; value: SourceInput; normalizedLineEndings: boolean; removedBom: boolean }
+  | { ok: false; message: string };
+
+export function validateTextFile(name: unknown, size: unknown): { ok: true } | { ok: false; message: string } {
+  if (typeof name !== "string" || characterCount(name) > 255 || /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069/\\]/.test(name) || !/^.+\.(txt|md)$/i.test(name)) {
+    return { ok: false, message: "Escolha um arquivo .txt ou .md com nome válido." };
+  }
+  if (typeof size !== "number" || !Number.isSafeInteger(size) || size < 1 || size > MAX_IMPORT_BYTES) {
+    return { ok: false, message: "O arquivo deve ter conteúdo e até 400 KB (400.000 bytes)." };
+  }
+  return { ok: true };
+}
+
+// Decode only local UTF-8 text. Never evaluate markup or silently truncate content.
+// Browser textareas standardize newlines, so this conversion is explicit here.
+export function decodeTextFile(name: string, bytes: Uint8Array): TextImportResult {
+  const metadata = validateTextFile(name, bytes.byteLength);
+  if (!metadata.ok) return metadata;
+  let decoded: string;
+  try { decoded = new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+  catch { return { ok: false, message: "Salve o arquivo como texto UTF-8 antes de importar." }; }
+  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/.test(decoded)) {
+    return { ok: false, message: "O arquivo contém dados binários ou caracteres de controle incompatíveis." };
+  }
+  const content = decoded.replace(/\r\n?/g, "\n");
+  if (!content.trim()) return { ok: false, message: "O arquivo não contém texto para importar." };
+  if (characterCount(content) > MAX_CONTENT) return { ok: false, message: "O texto ultrapassa 100.000 caracteres. Divida o arquivo antes de importar; nenhum trecho foi cortado." };
+  const stem = name.replace(/\.(txt|md)$/i, "").trim();
+  const title = Array.from(stem || "Texto importado").slice(0, MAX_TITLE).join("");
+  return { ok: true, value: { title, content }, normalizedLineEndings: decoded.includes("\r"), removedBom: bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf };
+}

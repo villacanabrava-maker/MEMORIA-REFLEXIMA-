@@ -1,28 +1,27 @@
 # Acesso ao ambiente de testes
 
-## Atualização de 15/09/2026
+## Situação após a revisão de 15/09/2026
 
-O usuário autorizou continuar no projeto de testes sem aguardar a rotação de credenciais. Isso substitui o bloqueio operacional descrito anteriormente, mas não significa que a rotação tenha ocorrido.
+A conta de teste solicitada existe no Supabase e o e-mail está confirmado. Isso foi consultado diretamente no banco; não comprova que a senha tenha sido testada nem que o fluxo autenticado completo esteja validado. Nenhuma credencial pessoal foi incluída no código.
 
-A migração `create_sources` foi aplicada ao Supabase pelo conector. O teste transacional no banco hospedado relatou aprovação de RLS, propriedade, CRUD, versões antigas e acesso anônimo; os dados temporários foram revertidos. Isso não equivale a um login real pelo navegador.
+Use o alias da branch, que acompanha as próximas publicações bem-sucedidas:
 
-A tentativa de criar uma conta administrativamente foi bloqueada pela ferramenta. A conta solicitada não foi confirmada como criada e nenhuma credencial do usuário foi colocada neste repositório. Consultas posteriores do conector Supabase retornaram HTTP 502.
+`https://memoria-reflexima-git-feat-biblioteca-textual-roberth4.vercel.app/login`
 
-Foi instalada uma extensão HTTP temporária no esquema restrito `test_setup_http`, com privilégios revogados de `public`, `anon` e `authenticated`. A remoção foi solicitada, mas retornou 502 e não pôde ser confirmada. Conferir e remover esse helper quando o conector voltar a responder; ele não é usado pela aplicação.
+Links de deploy antigos são imutáveis e podem exibir versões anteriores. O domínio principal continua separado deste PR.
 
-## Cadastro pela aplicação
+## Teste da importação
 
-- `/cadastro` usa somente a API pública `auth.signUp` e a chave publicável já configurada.
-- O visitante informa seus próprios dados no formulário. Nenhuma conta é criada por abrir a página.
-- Senhas não são retornadas no estado do formulário, colocadas em URLs ou gravadas em logs do código.
-- A confirmação de e-mail segue a configuração existente do Supabase. Não se desativa confirmação nem se altera o serviço de e-mail.
-- Após confirmar o e-mail, o usuário deve voltar a `/login`. O destino do link enviado depende do Site URL configurado no Supabase.
-- Se o Supabase rejeitar o destinatário por falta de configuração de e-mail, o administrador pode criar a conta no painel Authentication > Users ou configurar o SMTP. A interface não contorna essa restrição.
+Após entrar, abra Biblioteca > Importar TXT / Markdown. Escolha um pequeno arquivo UTF-8, confira que nada foi salvo automaticamente, revise o título e clique em Guardar texto. Em seguida, procure o título na biblioteca, abra o texto, edite e confira a exclusão com confirmação usando somente conteúdo de teste.
 
-## Ativação apenas em prévia
+A leitura inicial ocorre no navegador. Só o texto revisado é enviado ao salvar; o arquivo original não é guardado. Textos têm limite de 100.000 caracteres; arquivos, 400 KB. Arquivos PDF e DOCX não são aceitos por esse importador.
 
-Sem flags explícitas, cadastro e biblioteca ficam habilitados somente quando `VERCEL_ENV=preview`. Produção e desenvolvimento local continuam desabilitados por padrão.
+## Cadastro e ativação
 
-`SELF_SIGNUP_ENABLED` controla o cadastro e `PRIVATE_LIBRARY_ENABLED` controla a biblioteca. Valores explícitos têm prioridade; apenas `true` habilita. Um valor `false` também desativa na prévia.
+O cadastro `/cadastro` usa a API pública do Supabase e mantém as regras existentes de confirmação. `SELF_SIGNUP_ENABLED` e `PRIVATE_LIBRARY_ENABLED` têm prioridade quando definidos; sem configuração explícita, cadastro e biblioteca ficam habilitados apenas em Vercel Preview. O cadastro não representa garantia de envio de e-mails, que depende do projeto.
 
-Os testes unitários e de renderização não criam contas nem enviam e-mails. Conferir os resultados do commit no GitHub Actions. O fluxo completo autenticado continua pendente até uma conta ser criada e testada.
+## Pendências atualizadas
+
+O antigo helper HTTP foi removido; a consulta confirmou a limpeza. A tentativa de configurar Storage para originais foi bloqueada, então o módulo de originais não foi ativado. A importação de textos desta entrega não depende desse helper nem de buckets.
+
+O usuário autorizou o trabalho neste ambiente de testes sem aguardar rotação de chaves. Isso não confirma que alguma chave tenha sido substituída. Não publicar credenciais no repositório e não usar conteúdo real sensível durante estes testes.

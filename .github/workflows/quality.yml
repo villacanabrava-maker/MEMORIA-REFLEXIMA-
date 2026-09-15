@@ -33,12 +33,13 @@ jobs:
       - name: Record bundled Next.js guidance availability
         run: |
           if [ -d node_modules/next/dist/docs ]; then
-            find node_modules/next/dist/docs -type f | head -n 20 || true
+            find node_modules/next/dist/docs -type f > /tmp/next-guidance-files.txt
+            head -n 20 /tmp/next-guidance-files.txt
           fi
       - run: npm test
       - run: npm run lint
       - run: npm run build
-      - name: Test guest access and signup rendering against the build
+      - name: Test guest access, signup and import route against the build
         shell: bash
         run: |
           set -euo pipefail
@@ -53,3 +54,4 @@ jobs:
           if [ "$ready" != true ]; then cat /tmp/memoria-next.log; exit 1; fi
           node tests/smoke/anonymous.mjs
           node tests/smoke/signup.mjs
+          node tests/smoke/import.mjs

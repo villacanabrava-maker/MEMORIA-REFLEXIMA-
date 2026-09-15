@@ -1,38 +1,41 @@
 # Estado do projeto
 
-## Destinos confirmados em 15 de setembro de 2026
+## Revisão — 15 de setembro de 2026
 
-- GitHub: `villacanabrava-maker/MEMORIA-REFLEXIMA-`, base `main` em `c8a496f2c3cf652a3601232278708b2ae0d03521`.
-- Supabase: `MEMORIA-REFLEXIMA-`, referência `qkwcermdjgmvenzskevw`. Consulta ao esquema `public` retornou zero tabelas.
-- Vercel: projeto `memoria-reflexima`, ID `prj_s7r3fEDQ23WFDhBgX0SoxQ3Ovca9`, equipe `roberth4`, Next.js, Node.js 24.
-- Produção consultada: `dpl_HszsWTwdtkYN7WFCAZFHQGgSo3sJ`, estado `READY`, domínio `memoria-reflexima.vercel.app`.
-- Os projetos distintos `reflexao-pessoal` e `memoria-reflexiva` não são destinos desta entrega.
+Destino: `villacanabrava-maker/MEMORIA-REFLEXIMA-`, branch de trabalho `feat/biblioteca-textual`, PR #1. A `main` e o domínio principal não foram substituídos por esta entrega.
 
-## Incremento preparado em branch separada
+### Confirmado nas conexões
 
-- Biblioteca com criar, listar, buscar pelo título, paginar, abrir, editar e excluir textos.
-- Formulários com validação no servidor, estados de erro e processamento, confirmação de exclusão e limites de tamanho.
-- Verificação da versão antes de editar/excluir e carimbo de atualização monotônico no banco.
-- Contagens do banco; indisponibilidade não é mostrada como uma biblioteca vazia.
-- Login com retorno limitado a rotas internas conhecidas; botão de saída; verificação de identidade nas consultas e ações.
-- Migração de `public.sources`, RLS para cada operação e privilégios por coluna.
-- Ativação controlada por `PRIVATE_LIBRARY_ENABLED`, desativada por padrão e somente no servidor.
+- O Supabase do projeto `qkwcermdjgmvenzskevw` voltou a responder.
+- `public.sources` existe. A migração da biblioteca foi aplicada anteriormente.
+- A conta de teste solicitada consta em Auth e seu e-mail está confirmado. Não foi testada a senha nem realizado login pelo navegador nesta revisão.
+- A extensão HTTP temporária foi removida com `RESTRICT`, sem `CASCADE`. Consulta posterior confirmou que `test_setup_http` não existe mais.
+- A consulta de Storage mostrou nenhum bucket. A tentativa de configurar a área de arquivos foi bloqueada pela ferramenta; não foi repetida por outro caminho. Não há confirmação de criação de bucket nem de upload de originais.
 
-## Validações
+### Incremento de produto desta revisão
 
-- 42 testes unitários de validação, Unicode, busca e destinos de login executados localmente com sucesso.
-- `Application quality` foi incluído para repetir testes, lint, build e verificar acesso anônimo contra cinco rotas privadas.
-- `Database security` foi incluído para executar a migração e testes de isolamento/CRUD em PostgreSQL 17 descartável.
-- O resultado remoto dos workflows deve ser conferido no GitHub Actions; a existência dos arquivos não significa que a execução passou.
-- A clonagem pelo terminal local ficou indisponível por resolução de DNS. Os arquivos foram trabalhados pelo conector GitHub; não foi afirmada uma compilação local completa.
-- Não foi realizado login real nem inserido qualquer conteúdo no Supabase remoto.
+Importação de TXT e Markdown para a biblioteca textual, em `/biblioteca/importar`.
 
-## Não ativado
+1. O arquivo é lido localmente no navegador, sem envio automático.
+2. O conteúdo UTF-8 e o título sugerido aparecem em um formulário editável.
+3. Apenas ao clicar em Guardar texto a ação de servidor existente valida a sessão e os campos e grava em `sources` com RLS.
 
-A migração não foi aplicada ao projeto Supabase. A versão principal em produção não foi substituída por este incremento. A biblioteca permanece bloqueada até a ativação explícita; recursos de arquivos, IA e reflexões não estão implementados.
+Limites: arquivo de até 400.000 bytes e texto de até 100.000 caracteres. Conteúdo acima do limite é recusado, nunca cortado silenciosamente. Quebras de linha são padronizadas para LF; BOM inicial de UTF-8 é removido, com aviso. Markdown e HTML permanecem texto, sem interpretação. O arquivo original não é armazenado, e esta entrega não faz IA, extração de PDFs nem DOCX.
 
-## Pendência de segurança
+### Histórico de migrações reconciliado
 
-A chave administrativa anteriormente exposta precisa ser revogada/substituída. Nenhum valor de chave foi incluído nesta entrega e a chave exposta não foi utilizada. Não enviar a substituta pela conversa. RLS não neutraliza uma chave administrativa comprometida.
+O nome local de `create_sources` usava uma versão diferente da registrada no Supabase. Foi ajustado para `20260915211428`, sem reaplicar a tabela.
 
-Depois de confirmar a revogação, conferir os testes, aplicar apenas a migração e validar acesso entre dois usuários antes de ativar a biblioteca. O bootstrap de CI nunca deve ser executado no Supabase real.
+A versão remota `20260915211734` correspondeu ao helper temporário já aposentado. O arquivo local é explicitamente um marcador sem operação, não uma reprodução da instalação: ambientes novos não devem recriar esse helper. A remoção `20260915220335` é idempotente e não usa CASCADE. Nenhuma linha do histórico remoto foi editada.
+
+### Verificação
+
+- 40 testes específicos do decodificador passaram em execução local antes da integração.
+- A suíte do repositório acrescenta também teste do retorno seguro de login à importação.
+- O workflow executa testes unitários, lint, build e testes HTTP sem sessão, incluindo a nova rota.
+- O workflow de banco aplica as migrações apenas a PostgreSQL 17 descartável e verifica o isolamento das fontes.
+- Conferir o resultado do commit no GitHub Actions; os resultados finais são registrados no PR. Um build aprovado não comprova o fluxo autenticado no navegador.
+
+### Próximos incrementos
+
+Validar no navegador o fluxo completo: login, importar, revisar, guardar, buscar, editar e excluir. Em seguida, concluir a configuração de Storage para arquivos originais e só depois avançar para extração de evidências e reflexões. Essas etapas não são apresentadas como prontas.
