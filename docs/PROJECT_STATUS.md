@@ -4,38 +4,22 @@
 
 Destino: `villacanabrava-maker/MEMORIA-REFLEXIMA-`, branch `feat/biblioteca-textual`, PR #1. A `main` e o domínio principal permanecem separados.
 
-### Concluído e verificado anteriormente
+### Biblioteca textual
+CRUD, busca, paginação e importação revisável de TXT/Markdown continuam disponíveis na branch de testes, protegidos por autenticação e RLS.
 
-- Supabase `qkwcermdjgmvenzskevw` com `public.sources` e RLS por usuário.
-- Conta de teste solicitada existente e e-mail confirmado; senha e login completo no navegador não foram validados por automação.
-- Helper HTTP temporário removido sem `CASCADE`.
-- Biblioteca textual com CRUD, busca, paginação e importação revisável de TXT/Markdown.
+### Arquivos originais — limite elevado para 500 MB
+O módulo foi redesenhado para arquivos grandes. O limite de aplicação agora é **500.000.000 bytes (500 MB)** por PDF, TXT ou Markdown.
 
-### Incremento preparado agora: arquivos originais
+Arquivos não atravessam uma função da Vercel: o navegador envia diretamente ao Supabase Storage usando o protocolo **TUS resumível**, com blocos de 6 MiB, progresso visível e tentativa de retomada após interrupções. O caminho do objeto começa pelo `user.id` autenticado e não usa `upsert`. Downloads grandes usam URL assinada temporária, evitando carregar centenas de megabytes na memória da função Next.js.
 
-O código do módulo privado de arquivos originais foi adicionado, mas **permanece desativado** por `PRIVATE_FILES_ENABLED=false` enquanto o bucket do Supabase não estiver configurado.
+O bucket continua **desativado** por `PRIVATE_FILES_ENABLED=false` porque a ferramenta administrativa ainda não permitiu criar `library-originals-v1`. O arquivo `supabase/storage/library-originals.sql` registra bucket privado, limite de 500 MB, tipos aceitos e RLS por pasta do usuário; ele não foi aplicado.
 
-- Formatos: PDF, TXT e Markdown; limite de 2 MB.
-- Caminho do objeto sempre começa pelo `user.id` validado no servidor.
-- Chave do arquivo combina UUID da tentativa, SHA-256 do conteúdo e nome original codificado.
-- Upload não usa `upsert`; uma repetição da mesma tentativa só é aceita após conferir o SHA-256 do objeto existente.
-- Downloads são servidos como `application/octet-stream` e `attachment`, nunca como HTML/PDF inline.
-- Exclusão exige confirmação e passa pela Storage API.
-- A listagem não expõe objetos cujo nome interno não possa ser validado.
-- APIs sem sessão respondem JSON 401, em vez de redirecionar para HTML.
-
-### Bloqueio atual do Storage
-
-Uma consulta confirmou que o projeto ainda não possui buckets nem políticas em `storage.objects`. A tentativa de criar bucket e políticas pela ferramenta de migração foi bloqueada pela camada de segurança da ferramenta. Não foi contornada por SQL bruto.
-
-O arquivo `supabase/storage/library-originals.sql` documenta a configuração necessária, mas **não foi aplicado** e fica fora de `supabase/migrations` para não quebrar o PostgreSQL descartável do CI, que não possui Supabase Storage.
-
-Somente depois de configurar o bucket privado `library-originals-v1` e suas políticas deve-se definir `PRIVATE_FILES_ENABLED=true` na prévia. Até lá, a tela informa configuração pendente e não oferece upload.
+### Limite da plataforma
+A documentação atual do Supabase informa que o limite global de Storage do projeto também precisa permitir 500 MB. Projetos Free têm teto global de 50 MB; Pro e planos superiores podem configurar até 500 GB. Portanto, o app está preparado para 500 MB, mas o Storage só aceitará esse tamanho quando o plano/configuração global do projeto permitir.
 
 ### Próximos passos
-
-1. Conferir os workflows deste commit e a nova prévia.
-2. Criar o bucket e políticas pelo caminho de administração do Supabase quando a ferramenta permitir.
-3. Ativar `PRIVATE_FILES_ENABLED=true` somente na prévia.
-4. Validar login real, upload, download, listagem e exclusão com arquivos fictícios.
-5. Só depois iniciar extração de texto/evidências e recursos de IA.
+1. Conferir CI e Vercel Preview do commit de 500 MB.
+2. Criar o bucket privado e políticas pelo caminho administrativo autorizado do Supabase.
+3. Garantir limite global de Storage >= 500 MB no projeto.
+4. Ativar `PRIVATE_FILES_ENABLED=true` somente na prévia.
+5. Validar upload resumível, retomada, download e exclusão com arquivos fictícios antes de produção.
