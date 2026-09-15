@@ -1,0 +1,47 @@
+name: Database security
+
+on:
+  push:
+    branches: [main, 'feat/biblioteca-textual']
+    paths: ['supabase/migrations/**', 'tests/database/**', '.github/workflows/database.yml']
+  pull_request:
+    paths: ['supabase/migrations/**', 'tests/database/**', '.github/workflows/database.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-sources-security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci-only-disposable-password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate private sources in disposable PostgreSQL 17
+        shell: bash
+        run: |
+          set -euo pipefail
+          db_container="${{ job.services.postgres.id }}"
+          run_sql() {
+            docker exec -i "$db_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1
+          }
+          run_sql < tests/database/bootstrap.sql
+          for migration in supabase/migrations/*.sql; do
+            echo "Applying $migration to disposable CI database"
+            run_sql < "$migration"
+          done
+          run_sql < tests/database/sources.sql

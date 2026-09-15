@@ -18,17 +18,26 @@ export async function getLibrary(query = "", requestedPage = 1): Promise<Library
   const { supabase, user } = await requireUser();
   if (!libraryEnabled()) return { status: "disabled" };
   try {
-    const offset = (requestedPage - 1) * PAGE_SIZE;
+    // Count first: requesting an out-of-range interval can produce HTTP 416.
+    // Do not confuse an invalid page with an unavailable database.
+    let counter = supabase.from("sources").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+    if (query) counter = counter.ilike("title", titlePattern(query));
+    const { count, error: countError } = await counter;
+    if (countError || count === null) return { status: "error" };
+    const pages = Math.max(1, Math.ceil(count / PAGE_SIZE));
+    const page = Math.min(Math.max(1, requestedPage), pages);
+    if (count === 0) return { status: "ready", sources: [], total: 0, page, pages };
+    const offset = (page - 1) * PAGE_SIZE;
     let request = supabase.from("sources")
-      .select("id,title,created_at,updated_at", { count: "exact" })
+      .select("id,title,created_at,updated_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .range(offset, offset + PAGE_SIZE - 1);
     if (query) request = request.ilike("title", titlePattern(query));
-    const { data, count, error } = await request;
-    if (error || count === null) return { status: "error" };
-    return { status: "ready", sources: (data ?? []) as SourceSummary[], total: count, page: requestedPage, pages: Math.max(1, Math.ceil(count / PAGE_SIZE)) };
+    const { data, error } = await request;
+    if (error) return { status: "error" };
+    return { status: "ready", sources: (data ?? []) as SourceSummary[], total: count, page, pages };
   } catch {
     return { status: "error" };
   }
@@ -48,7 +57,6 @@ export async function getSource(id: string): Promise<{ status: "ready"; source: 
   } catch {
     return { status: "error" };
   }
-  // Missing and someone else's record have the same response.
   if (!source) notFound();
   return { status: "ready", source };
 }

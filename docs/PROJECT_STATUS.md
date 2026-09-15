@@ -1,32 +1,38 @@
 # Estado do projeto
 
-## Marco atual — Fundação 0.1
+## Destinos confirmados em 15 de setembro de 2026
 
-- [x] Projeto Next.js criado.
-- [x] TypeScript, Tailwind e lint configurados.
-- [x] Tela inicial responsiva construída.
-- [x] Estado vazio sem números inventados.
-- [x] Arquivo de exemplo de ambiente sem segredos.
-- [x] Repositório GitHub informado e configurado como destino local.
-- [ ] Acesso de escrita ao GitHub disponível nesta sessão.
-- [ ] Organização Supabase consultável pelo conector.
-- [ ] Equipe Vercel consultável pelo conector.
-- [ ] Repositório remoto privado criado.
-- [ ] Projeto Supabase de desenvolvimento criado.
-- [ ] Projeto Vercel criado e vinculado.
-- [x] Cliente Supabase configurado somente com chave pública.
-- [x] Tela de login e proteção de rotas implementadas.
-- [x] Serviço público do Supabase Auth respondeu com HTTP 200.
-- [x] Rota privada redireciona visitantes sem sessão para `/login`.
-- [ ] Autenticação validada com um usuário de teste real.
-- [ ] Banco implementado.
+- GitHub: `villacanabrava-maker/MEMORIA-REFLEXIMA-`, base `main` em `c8a496f2c3cf652a3601232278708b2ae0d03521`.
+- Supabase: `MEMORIA-REFLEXIMA-`, referência `qkwcermdjgmvenzskevw`. Consulta ao esquema `public` retornou zero tabelas.
+- Vercel: projeto `memoria-reflexima`, ID `prj_s7r3fEDQ23WFDhBgX0SoxQ3Ovca9`, equipe `roberth4`, Next.js, Node.js 24.
+- Produção consultada: `dpl_HszsWTwdtkYN7WFCAZFHQGgSo3sJ`, estado `READY`, domínio `memoria-reflexima.vercel.app`.
+- Os projetos distintos `reflexao-pessoal` e `memoria-reflexiva` não são destinos desta entrega.
 
-## Bloqueio externo atual
+## Incremento preparado em branch separada
 
-Os três plugins aparecem instalados e habilitados, mas as consultas de leitura retornam `Unknown tool`. Por segurança, nenhuma organização, região, cobrança, projeto remoto ou chave foi presumida.
+- Biblioteca com criar, listar, buscar pelo título, paginar, abrir, editar e excluir textos.
+- Formulários com validação no servidor, estados de erro e processamento, confirmação de exclusão e limites de tamanho.
+- Verificação da versão antes de editar/excluir e carimbo de atualização monotônico no banco.
+- Contagens do banco; indisponibilidade não é mostrada como uma biblioteca vazia.
+- Login com retorno limitado a rotas internas conhecidas; botão de saída; verificação de identidade nas consultas e ações.
+- Migração de `public.sources`, RLS para cada operação e privilégios por coluna.
+- Ativação controlada por `PRIVATE_LIBRARY_ENABLED`, desativada por padrão e somente no servidor.
 
-A chave administrativa enviada na conversa foi considerada comprometida e não foi armazenada. Ela precisa ser substituída no painel do Supabase antes de qualquer operação administrativa.
+## Validações
 
-## Próximo marco
+- 42 testes unitários de validação, Unicode, busca e destinos de login executados localmente com sucesso.
+- `Application quality` foi incluído para repetir testes, lint, build e verificar acesso anônimo contra cinco rotas privadas.
+- `Database security` foi incluído para executar a migração e testes de isolamento/CRUD em PostgreSQL 17 descartável.
+- O resultado remoto dos workflows deve ser conferido no GitHub Actions; a existência dos arquivos não significa que a execução passou.
+- A clonagem pelo terminal local ficou indisponível por resolução de DNS. Os arquivos foram trabalhados pelo conector GitHub; não foi afirmada uma compilação local completa.
+- Não foi realizado login real nem inserido qualquer conteúdo no Supabase remoto.
 
-Quando os conectores responderem, criar os recursos remotos, inserir as variáveis de ambiente pelo gerenciador de segredos e implementar login por e-mail e senha com rotas privadas.
+## Não ativado
+
+A migração não foi aplicada ao projeto Supabase. A versão principal em produção não foi substituída por este incremento. A biblioteca permanece bloqueada até a ativação explícita; recursos de arquivos, IA e reflexões não estão implementados.
+
+## Pendência de segurança
+
+A chave administrativa anteriormente exposta precisa ser revogada/substituída. Nenhum valor de chave foi incluído nesta entrega e a chave exposta não foi utilizada. Não enviar a substituta pela conversa. RLS não neutraliza uma chave administrativa comprometida.
+
+Depois de confirmar a revogação, conferir os testes, aplicar apenas a migração e validar acesso entre dois usuários antes de ativar a biblioteca. O bootstrap de CI nunca deve ser executado no Supabase real.
