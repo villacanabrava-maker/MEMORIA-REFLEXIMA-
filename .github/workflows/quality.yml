@@ -22,6 +22,7 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_fixture_not_a_real_key
       PRIVATE_LIBRARY_ENABLED: 'false'
+      SELF_SIGNUP_ENABLED: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -37,7 +38,7 @@ jobs:
       - run: npm test
       - run: npm run lint
       - run: npm run build
-      - name: Test guest access against the production build
+      - name: Test guest access and signup rendering against the build
         shell: bash
         run: |
           set -euo pipefail
@@ -51,3 +52,4 @@ jobs:
           done
           if [ "$ready" != true ]; then cat /tmp/memoria-next.log; exit 1; fi
           node tests/smoke/anonymous.mjs
+          node tests/smoke/signup.mjs

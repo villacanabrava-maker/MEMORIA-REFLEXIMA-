@@ -1,6 +1,7 @@
 import "server-only";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/require-user";
+import { previewFeatureEnabled } from "@/lib/auth/signup";
 import { isSourceId, PAGE_SIZE, titlePattern } from "./validation";
 
 export type SourceSummary = { id: string; title: string; created_at: string; updated_at: string };
@@ -11,15 +12,13 @@ export type LibraryResult =
   | { status: "error" };
 
 export function libraryEnabled(): boolean {
-  return process.env.PRIVATE_LIBRARY_ENABLED === "true";
+  return previewFeatureEnabled(process.env.PRIVATE_LIBRARY_ENABLED, process.env.VERCEL_ENV);
 }
 
 export async function getLibrary(query = "", requestedPage = 1): Promise<LibraryResult> {
   const { supabase, user } = await requireUser();
   if (!libraryEnabled()) return { status: "disabled" };
   try {
-    // Count first: requesting an out-of-range interval can produce HTTP 416.
-    // Do not confuse an invalid page with an unavailable database.
     let counter = supabase.from("sources").select("id", { count: "exact", head: true }).eq("user_id", user.id);
     if (query) counter = counter.ilike("title", titlePattern(query));
     const { count, error: countError } = await counter;

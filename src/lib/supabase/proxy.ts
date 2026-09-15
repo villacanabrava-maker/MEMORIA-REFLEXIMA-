@@ -18,11 +18,12 @@ export async function updateSession(request: NextRequest) {
   });
   const { data } = await supabase.auth.getClaims();
   const pathname = request.nextUrl.pathname;
+  const isAuthPage = pathname === "/login" || pathname === "/cadastro";
   let destination: URL | undefined;
-  if (!data?.claims && pathname !== "/login") {
+  if (!data?.claims && !isAuthPage) {
     destination = new URL("/login", request.url);
     destination.searchParams.set("retorno", safeReturnPath(`${pathname}${request.nextUrl.search}`));
-  } else if (data?.claims && pathname === "/login" && request.nextUrl.searchParams.get("erro") !== "sessao") {
+  } else if (data?.claims && isAuthPage && request.nextUrl.searchParams.get("erro") !== "sessao") {
     destination = new URL(safeReturnPath(request.nextUrl.searchParams.get("retorno")), request.url);
   }
   if (destination) {
