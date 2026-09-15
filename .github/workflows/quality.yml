@@ -22,6 +22,7 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_fixture_not_a_real_key
       PRIVATE_LIBRARY_ENABLED: 'false'
+      PRIVATE_FILES_ENABLED: 'false'
       SELF_SIGNUP_ENABLED: 'true'
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +40,7 @@ jobs:
       - run: npm test
       - run: npm run lint
       - run: npm run build
-      - name: Test guest access, signup and import route against the build
+      - name: Test guest access and private routes against the build
         shell: bash
         run: |
           set -euo pipefail
@@ -55,3 +56,4 @@ jobs:
           node tests/smoke/anonymous.mjs
           node tests/smoke/signup.mjs
           node tests/smoke/import.mjs
+          node tests/smoke/files.mjs

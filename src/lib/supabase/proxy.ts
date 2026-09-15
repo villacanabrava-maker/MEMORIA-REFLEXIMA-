@@ -18,9 +18,14 @@ export async function updateSession(request: NextRequest) {
   });
   const { data } = await supabase.auth.getClaims();
   const pathname = request.nextUrl.pathname;
+  const isFileApi = pathname === "/api/arquivos" || pathname.startsWith("/api/arquivos/");
   const isAuthPage = pathname === "/login" || pathname === "/cadastro";
   let destination: URL | undefined;
-  if (!data?.claims && !isAuthPage) {
+  if (!data?.claims && isFileApi) {
+    const unauthorized = NextResponse.json({ message: "Entre novamente para acessar seus arquivos." }, { status: 401 });
+    response.cookies.getAll().forEach((cookie) => unauthorized.cookies.set(cookie));
+    response = unauthorized;
+  } else if (!data?.claims && !isAuthPage) {
     destination = new URL("/login", request.url);
     destination.searchParams.set("retorno", safeReturnPath(`${pathname}${request.nextUrl.search}`));
   } else if (data?.claims && isAuthPage && request.nextUrl.searchParams.get("erro") !== "sessao") {
@@ -33,5 +38,6 @@ export async function updateSession(request: NextRequest) {
   }
   response.headers.set("Cache-Control", "private, no-store");
   response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  response.headers.set("X-Content-Type-Options", "nosniff");
   return response;
 }

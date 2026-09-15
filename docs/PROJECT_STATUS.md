@@ -2,40 +2,40 @@
 
 ## Revisão — 15 de setembro de 2026
 
-Destino: `villacanabrava-maker/MEMORIA-REFLEXIMA-`, branch de trabalho `feat/biblioteca-textual`, PR #1. A `main` e o domínio principal não foram substituídos por esta entrega.
+Destino: `villacanabrava-maker/MEMORIA-REFLEXIMA-`, branch `feat/biblioteca-textual`, PR #1. A `main` e o domínio principal permanecem separados.
 
-### Confirmado nas conexões
+### Concluído e verificado anteriormente
 
-- O Supabase do projeto `qkwcermdjgmvenzskevw` voltou a responder.
-- `public.sources` existe. A migração da biblioteca foi aplicada anteriormente.
-- A conta de teste solicitada consta em Auth e seu e-mail está confirmado. Não foi testada a senha nem realizado login pelo navegador nesta revisão.
-- A extensão HTTP temporária foi removida com `RESTRICT`, sem `CASCADE`. Consulta posterior confirmou que `test_setup_http` não existe mais.
-- A consulta de Storage mostrou nenhum bucket. A tentativa de configurar a área de arquivos foi bloqueada pela ferramenta; não foi repetida por outro caminho. Não há confirmação de criação de bucket nem de upload de originais.
+- Supabase `qkwcermdjgmvenzskevw` com `public.sources` e RLS por usuário.
+- Conta de teste solicitada existente e e-mail confirmado; senha e login completo no navegador não foram validados por automação.
+- Helper HTTP temporário removido sem `CASCADE`.
+- Biblioteca textual com CRUD, busca, paginação e importação revisável de TXT/Markdown.
 
-### Incremento de produto desta revisão
+### Incremento preparado agora: arquivos originais
 
-Importação de TXT e Markdown para a biblioteca textual, em `/biblioteca/importar`.
+O código do módulo privado de arquivos originais foi adicionado, mas **permanece desativado** por `PRIVATE_FILES_ENABLED=false` enquanto o bucket do Supabase não estiver configurado.
 
-1. O arquivo é lido localmente no navegador, sem envio automático.
-2. O conteúdo UTF-8 e o título sugerido aparecem em um formulário editável.
-3. Apenas ao clicar em Guardar texto a ação de servidor existente valida a sessão e os campos e grava em `sources` com RLS.
+- Formatos: PDF, TXT e Markdown; limite de 2 MB.
+- Caminho do objeto sempre começa pelo `user.id` validado no servidor.
+- Chave do arquivo combina UUID da tentativa, SHA-256 do conteúdo e nome original codificado.
+- Upload não usa `upsert`; uma repetição da mesma tentativa só é aceita após conferir o SHA-256 do objeto existente.
+- Downloads são servidos como `application/octet-stream` e `attachment`, nunca como HTML/PDF inline.
+- Exclusão exige confirmação e passa pela Storage API.
+- A listagem não expõe objetos cujo nome interno não possa ser validado.
+- APIs sem sessão respondem JSON 401, em vez de redirecionar para HTML.
 
-Limites: arquivo de até 400.000 bytes e texto de até 100.000 caracteres. Conteúdo acima do limite é recusado, nunca cortado silenciosamente. Quebras de linha são padronizadas para LF; BOM inicial de UTF-8 é removido, com aviso. Markdown e HTML permanecem texto, sem interpretação. O arquivo original não é armazenado, e esta entrega não faz IA, extração de PDFs nem DOCX.
+### Bloqueio atual do Storage
 
-### Histórico de migrações reconciliado
+Uma consulta confirmou que o projeto ainda não possui buckets nem políticas em `storage.objects`. A tentativa de criar bucket e políticas pela ferramenta de migração foi bloqueada pela camada de segurança da ferramenta. Não foi contornada por SQL bruto.
 
-O nome local de `create_sources` usava uma versão diferente da registrada no Supabase. Foi ajustado para `20260915211428`, sem reaplicar a tabela.
+O arquivo `supabase/storage/library-originals.sql` documenta a configuração necessária, mas **não foi aplicado** e fica fora de `supabase/migrations` para não quebrar o PostgreSQL descartável do CI, que não possui Supabase Storage.
 
-A versão remota `20260915211734` correspondeu ao helper temporário já aposentado. O arquivo local é explicitamente um marcador sem operação, não uma reprodução da instalação: ambientes novos não devem recriar esse helper. A remoção `20260915220335` é idempotente e não usa CASCADE. Nenhuma linha do histórico remoto foi editada.
+Somente depois de configurar o bucket privado `library-originals-v1` e suas políticas deve-se definir `PRIVATE_FILES_ENABLED=true` na prévia. Até lá, a tela informa configuração pendente e não oferece upload.
 
-### Verificação
+### Próximos passos
 
-- 40 testes específicos do decodificador passaram em execução local antes da integração.
-- A suíte do repositório acrescenta também teste do retorno seguro de login à importação.
-- O workflow executa testes unitários, lint, build e testes HTTP sem sessão, incluindo a nova rota.
-- O workflow de banco aplica as migrações apenas a PostgreSQL 17 descartável e verifica o isolamento das fontes.
-- Conferir o resultado do commit no GitHub Actions; os resultados finais são registrados no PR. Um build aprovado não comprova o fluxo autenticado no navegador.
-
-### Próximos incrementos
-
-Validar no navegador o fluxo completo: login, importar, revisar, guardar, buscar, editar e excluir. Em seguida, concluir a configuração de Storage para arquivos originais e só depois avançar para extração de evidências e reflexões. Essas etapas não são apresentadas como prontas.
+1. Conferir os workflows deste commit e a nova prévia.
+2. Criar o bucket e políticas pelo caminho de administração do Supabase quando a ferramenta permitir.
+3. Ativar `PRIVATE_FILES_ENABLED=true` somente na prévia.
+4. Validar login real, upload, download, listagem e exclusão com arquivos fictícios.
+5. Só depois iniciar extração de texto/evidências e recursos de IA.

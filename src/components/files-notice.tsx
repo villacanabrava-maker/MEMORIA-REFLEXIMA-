@@ -1,0 +1,3 @@
+export function FilesNotice({ status }: { status: "disabled" | "error" }) {
+  return <section className="library-panel notice" role="status"><p className="eyebrow">{status === "disabled" ? "Configuração pendente" : "Armazenamento indisponível"}</p><h2>{status === "disabled" ? "O módulo de arquivos está preparado" : "Não foi possível consultar seus arquivos"}</h2><p>{status === "disabled" ? "O código de arquivos originais está pronto, mas o bucket privado do Supabase ainda precisa ser criado e a flag deste ambiente precisa ser ativada. A biblioteca textual continua funcionando separadamente." : "A consulta ao armazenamento falhou. Isso não significa que os originais tenham sido apagados. Recarregue a página antes de repetir qualquer ação."}</p></section>;
+}
