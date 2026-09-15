@@ -23,7 +23,7 @@ export function FileUploadForm({ requestId }: { requestId: string }) {
   return <form className="source-form" onSubmit={submit} aria-busy={pending}>
     <label htmlFor="original-file">Arquivo original</label>
     <input id="original-file" type="file" name="file" accept=".pdf,.txt,.md" required disabled={pending} aria-describedby="file-help file-status" onChange={(event) => { const file = event.target.files?.[0]; setSelection(file ? `${file.name} · ${formatFileSize(file.size)}` : ""); setMessage(""); setProgress(0); }} />
-    <p id="file-help" className="field-help">PDF, TXT e Markdown (.md). Até 500 MB por arquivo. Arquivos grandes são enviados diretamente ao Supabase em blocos resumíveis.</p>
+    <p id="file-help" className="field-help">PDF, TXT e Markdown (.md). Até 50 MB por arquivo, compatível com o plano Free. O envio é direto ao Supabase em blocos resumíveis.</p>
     {selection ? <p className="file-selection">{selection}</p> : null}
     {pending ? <progress value={progress} max={100} aria-label="Progresso do upload">{progress.toFixed(0)}%</progress> : null}
     <p id="file-status" className="form-status" role="status" aria-live="polite">{pending ? `Enviando… ${progress.toFixed(0)}%` : message}</p>
