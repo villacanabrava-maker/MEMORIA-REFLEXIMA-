@@ -73,7 +73,9 @@ function decodeName(value: string): string | null {
 }
 
 export async function fileDigest(bytes: Uint8Array): Promise<string> {
-  const hash = await crypto.subtle.digest("SHA-256", bytes);
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  const hash = await crypto.subtle.digest("SHA-256", copy.buffer);
   return Array.from(new Uint8Array(hash), (value) => value.toString(16).padStart(2, "0")).join("");
 }
 
