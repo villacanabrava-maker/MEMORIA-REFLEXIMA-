@@ -21,6 +21,8 @@ export default async function FilePage({ params }: { params: Promise<{ key: stri
   const { file } = result;
   const extraction = await extractStoredText(key);
   const extension = file.name.includes(".") ? file.name.split(".").pop()?.toUpperCase() : "ARQUIVO";
+  const isPdf = /\.pdf$/i.test(file.name);
+  const encodedKey = encodeURIComponent(file.key);
 
   return <article className="library-panel">
     <Link className="workspace-button neutral" href="/biblioteca">← Biblioteca</Link>
@@ -34,9 +36,17 @@ export default async function FilePage({ params }: { params: Promise<{ key: stri
       <span>Original preservado no Supabase Storage</span>
     </div>
     <div className="workspace-actions">
-      <a className="workspace-button neutral" href={`/api/arquivos/${encodeURIComponent(file.key)}`}>Baixar original</a>
+      <a className="workspace-button neutral" href={`/api/arquivos/${encodedKey}`}>Baixar original</a>
+      {isPdf ? <a className="workspace-button neutral" href={`/api/arquivos/${encodedKey}?modo=visualizar`} target="_blank" rel="noreferrer">Abrir PDF em nova guia</a> : null}
       <DeleteFileButton fileKey={file.key} name={file.name} />
     </div>
+
+    {isPdf ? <section className="library-panel">
+      <p className="eyebrow">Visualização do PDF</p>
+      <h3>Documento original</h3>
+      <p className="field-help">A visualização usa um acesso temporário assinado ao arquivo privado. O PDF permanece no Storage e não se torna público.</p>
+      <iframe className="pdf-preview" src={`/api/arquivos/${encodedKey}?modo=visualizar`} title={`PDF: ${file.name}`} />
+    </section> : null}
 
     <section className="library-panel">
       <p className="eyebrow">Conteúdo do documento</p>
@@ -46,9 +56,9 @@ export default async function FilePage({ params }: { params: Promise<{ key: stri
         {(extraction.normalizedLineEndings || extraction.removedBom) ? <p className="field-help">O texto foi normalizado apenas para visualização. O arquivo original não foi alterado.</p> : null}
         <div className="source-body">{extraction.input.content}</div>
       </> : <>
-        <h3>Original salvo com segurança</h3>
+        <h3>{isPdf ? "Extração de texto do PDF ainda não ativada" : "Original salvo com segurança"}</h3>
         <p>{extraction.message}</p>
-        <p className="field-help">TXT, Markdown e DOCX já podem ser lidos. A próxima ampliação será PDF. Formatos sem extrator confiável continuam disponíveis como original.</p>
+        <p className="field-help">TXT, Markdown e DOCX já podem ser lidos. PDFs já podem ser visualizados com segurança; a próxima etapa adicionará a extração do texto do PDF com limites de páginas e tamanho.</p>
       </>}
     </section>
   </article>;
