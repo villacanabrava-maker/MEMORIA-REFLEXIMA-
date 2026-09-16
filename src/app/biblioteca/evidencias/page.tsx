@@ -37,7 +37,7 @@ export default async function EvidencePage({ searchParams }: { searchParams: Pro
   return <section className="library-panel">
     <div className="library-toolbar">
       <div><p className="eyebrow">Conhecimento rastreável</p><h2>Evidências</h2></div>
-      <Link className="workspace-button neutral" href="/biblioteca">← Biblioteca</Link>
+      <div className="workspace-actions"><Link className="workspace-button neutral" href="/memoria">Minha Memória</Link><Link className="workspace-button neutral" href="/biblioteca">← Biblioteca</Link></div>
     </div>
     <p className="files-explanation">Cada evidência é derivada novamente da página ou parte armazenada no banco. Trechos selecionados mantêm seus offsets dentro da fonte e não podem ter o texto adulterado pelo cliente.</p>
     {params.status === "invalida" ? <p className="field-error" role="status">A origem desta evidência não pôde ser validada.</p> : null}
@@ -56,7 +56,10 @@ export default async function EvidencePage({ searchParams }: { searchParams: Pro
           <span>Salva em <time dateTime={row.created_at}>{formatDate(row.created_at)}</time></span>
           {row.source_updated_at ? <span>Fonte processada em <time dateTime={row.source_updated_at}>{formatDate(row.source_updated_at)}</time></span> : null}
         </div>
-        {document ? <Link className="source-open" href={`/biblioteca/arquivos/${encodeURIComponent(document.storage_key)}`}>Abrir origem →</Link> : null}
+        <div className="workspace-actions">
+          <Link className="workspace-button primary" href={`/memoria/novo?evidencia=${row.id}`}>Criar memória desta evidência</Link>
+          {document ? <Link className="workspace-button neutral" href={`/biblioteca/arquivos/${encodeURIComponent(document.storage_key)}`}>Abrir origem</Link> : null}
+        </div>
       </li>;
     })}</ul> : <p>Nenhuma evidência salva ainda. Abra um documento processado, selecione uma passagem e salve o trecho como evidência.</p>}
   </section>;
