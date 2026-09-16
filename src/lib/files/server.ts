@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth/require-user";
+import { decodeTextFile, MAX_IMPORT_BYTES, type SourceInput } from "@/lib/sources/validation";
 import { FILE_BUCKET, FILE_PAGE_SIZE, parseFileKey } from "./validation";
 
 export function filesEnabled(): boolean {
@@ -63,5 +64,34 @@ export async function getFiles(page: number): Promise<FilesResult> {
     return { status: "ready", files, hasNext: data.length > FILE_PAGE_SIZE, unknownFiles };
   } catch {
     return { status: "error" };
+  }
+}
+
+export type TextExtractionResult =
+  | { status: "ready"; input: SourceInput; normalizedLineEndings: boolean; removedBom: boolean }
+  | { status: "unsupported" | "too_large" | "invalid" | "missing" | "error"; message: string };
+
+export async function extractStoredText(key: string): Promise<TextExtractionResult> {
+  const parsed = parseFileKey(key);
+  if (!parsed) return { status: "invalid", message: "O identificador deste arquivo é inválido." };
+  if (!/\.(txt|md)$/i.test(parsed.originalName)) return { status: "unsupported", message: "A extração automática está disponível apenas para TXT e Markdown nesta etapa." };
+  const { supabase, user } = await requireUser();
+  if (!filesEnabled()) return { status: "error", message: "O armazenamento de arquivos ainda não está ativo neste ambiente." };
+  const path = `${user.id}/${key}`;
+  try {
+    const { data: listed, error: listError } = await supabase.storage.from(FILE_BUCKET).list(user.id, { limit: 10, search: key });
+    if (listError || !listed) return { status: "error", message: "Não foi possível verificar o arquivo antes da leitura." };
+    const exact = listed.find((item) => item.name === key && item.id);
+    if (!exact) return { status: "missing", message: "Este arquivo não foi encontrado na sua área privada." };
+    const listedSize = typeof exact.metadata?.size === "number" ? exact.metadata.size : null;
+    if (listedSize !== null && listedSize > MAX_IMPORT_BYTES) return { status: "too_large", message: "Para transformar em texto editável, o TXT/Markdown precisa ter até 400 KB. O original continua preservado." };
+    const { data, error } = await supabase.storage.from(FILE_BUCKET).download(path);
+    if (error || !data) return { status: "error", message: "Não foi possível ler este arquivo agora." };
+    if (data.size > MAX_IMPORT_BYTES) return { status: "too_large", message: "Para transformar em texto editável, o TXT/Markdown precisa ter até 400 KB. O original continua preservado." };
+    const decoded = decodeTextFile(parsed.originalName, new Uint8Array(await data.arrayBuffer()));
+    if (!decoded.ok) return { status: "invalid", message: decoded.message };
+    return { status: "ready", input: decoded.value, normalizedLineEndings: decoded.normalizedLineEndings, removedBom: decoded.removedBom };
+  } catch {
+    return { status: "error", message: "A conexão foi interrompida durante a leitura. Nenhum texto foi salvo automaticamente." };
   }
 }
