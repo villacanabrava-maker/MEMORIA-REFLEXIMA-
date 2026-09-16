@@ -1,7 +1,23 @@
 -- Supabase Storage privado para arquivos originais da biblioteca.
 -- Compatível com o plano Free: limite de 50 MB por arquivo.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('library-originals-v1','library-originals-v1',false,50000000,array['application/pdf','text/plain','text/markdown']::text[])
+values (
+  'library-originals-v1',
+  'library-originals-v1',
+  false,
+  50000000,
+  array[
+    'application/pdf',
+    'text/plain',
+    'text/markdown',
+    'text/csv',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.oasis.opendocument.text',
+    'application/rtf',
+    'application/vnd.apple.pages'
+  ]::text[]
+)
 on conflict (id) do update set public=excluded.public,file_size_limit=excluded.file_size_limit,allowed_mime_types=excluded.allowed_mime_types;
 
 drop policy if exists library_originals_select_own on storage.objects;
