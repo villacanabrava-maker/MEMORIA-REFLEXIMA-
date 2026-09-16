@@ -4,7 +4,10 @@ import { requireUser } from "@/lib/auth/require-user";
 import { FILE_BUCKET, FILE_PAGE_SIZE, parseFileKey } from "./validation";
 
 export function filesEnabled(): boolean {
-  return process.env.PRIVATE_FILES_ENABLED === "true";
+  const configured = process.env.PRIVATE_FILES_ENABLED;
+  if (configured === "true") return true;
+  if (configured === "false") return false;
+  return process.env.VERCEL_ENV === "preview";
 }
 
 export function privateJson(data: unknown, status = 200): Response {
