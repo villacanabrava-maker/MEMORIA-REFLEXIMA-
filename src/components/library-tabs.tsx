@@ -6,8 +6,7 @@ import { usePathname } from "next/navigation";
 const tabs = [
   { href: "/biblioteca", label: "Meus textos" },
   { href: "/biblioteca/novo", label: "Adicionar texto" },
-  { href: "/biblioteca/importar", label: "Importar TXT / Markdown" },
-  { href: "/biblioteca/arquivos", label: "Arquivos originais" },
+  { href: "/biblioteca/arquivos", label: "Arquivos" },
 ];
 
 export function LibraryTabs() {
