@@ -51,14 +51,15 @@ export default async function FilePage({ params }: { params: Promise<{ key: stri
     <section className="library-panel">
       <p className="eyebrow">Conteúdo do documento</p>
       {extraction.status === "ready" ? <>
-        <h3>Texto extraído{extraction.format === "docx" ? " do Word" : ""}</h3>
+        <h3>{extraction.format === "docx" ? "Texto extraído do Word" : extraction.format === "pdf" ? "Texto extraído do PDF" : "Texto extraído"}</h3>
         {extraction.format === "docx" ? <p className="field-help">O aplicativo leu o texto principal do DOCX. Formatação visual, imagens e elementos complexos não alteram o arquivo original e não são reproduzidos nesta etapa.</p> : null}
+        {extraction.format === "pdf" ? <p className="field-help">Extração concluída em {extraction.pages ?? 0} {extraction.pages === 1 ? "página" : "páginas"}. A visualização e o arquivo original permanecem separados do texto derivado.</p> : null}
         {(extraction.normalizedLineEndings || extraction.removedBom) ? <p className="field-help">O texto foi normalizado apenas para visualização. O arquivo original não foi alterado.</p> : null}
         <div className="source-body">{extraction.input.content}</div>
       </> : <>
-        <h3>{isPdf ? "Extração de texto do PDF ainda não ativada" : "Original salvo com segurança"}</h3>
+        <h3>Original salvo com segurança</h3>
         <p>{extraction.message}</p>
-        <p className="field-help">TXT, Markdown e DOCX já podem ser lidos. PDFs já podem ser visualizados com segurança; a próxima etapa adicionará a extração do texto do PDF com limites de páginas e tamanho.</p>
+        <p className="field-help">TXT, Markdown, DOCX e PDFs com texto selecionável podem ser lidos automaticamente dentro dos limites seguros. PDFs digitalizados somente como imagem precisarão de OCR em uma etapa futura.</p>
       </>}
     </section>
   </article>;
