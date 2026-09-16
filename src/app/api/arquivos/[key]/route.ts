@@ -23,5 +23,7 @@ export async function DELETE(request: Request, context: Context) {
   if (confirmation !== "excluir") return privateJson({ message: "Confirme a exclusão do original." }, 400);
   const { error } = await access.supabase.storage.from(FILE_BUCKET).remove([`${access.user.id}/${key}`]);
   if (error) return privateJson({ message: "Não foi possível confirmar a exclusão. Recarregue a lista antes de repetir." }, 503);
-  revalidatePath("/biblioteca/arquivos"); return privateJson({ ok: true });
+  revalidatePath("/biblioteca");
+  revalidatePath("/biblioteca/arquivos");
+  return privateJson({ ok: true });
 }
