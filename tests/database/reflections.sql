@@ -101,9 +101,13 @@ begin
 end;
 $$;
 
-if exists (select 1 from public.reflections where title = 'Reflexão B') then
-  do $$ begin raise exception 'A read B reflection'; end $$;
-end if;
+do $$
+begin
+  if exists (select 1 from public.reflections where title = 'Reflexão B') then
+    raise exception 'A read B reflection';
+  end if;
+end;
+$$;
 
 select set_config('request.jwt.claim.sub', '60000000-0000-4000-8000-000000000002', true);
 do $$
