@@ -10,6 +10,21 @@ values
   ('61000000-0000-4000-8000-000000000001', '60000000-0000-4000-8000-000000000001', 'concept', 'Memória A', 'Contexto A', 'confirmed'),
   ('61000000-0000-4000-8000-000000000002', '60000000-0000-4000-8000-000000000002', 'concept', 'Memória B', 'Contexto B', 'confirmed');
 
+insert into public.library_documents (id, user_id, storage_key, file_name)
+values
+  ('63000000-0000-4000-8000-000000000001', '60000000-0000-4000-8000-000000000001', 'a/reflection.pdf', 'Reflection A.pdf'),
+  ('63000000-0000-4000-8000-000000000002', '60000000-0000-4000-8000-000000000002', 'b/reflection.pdf', 'Reflection B.pdf');
+
+insert into public.library_evidence (id, user_id, document_id, source_kind, page_number, source_label, excerpt)
+values
+  ('64000000-0000-4000-8000-000000000001', '60000000-0000-4000-8000-000000000001', '63000000-0000-4000-8000-000000000001', 'page', 1, 'A página 1', 'Evidência A'),
+  ('64000000-0000-4000-8000-000000000002', '60000000-0000-4000-8000-000000000002', '63000000-0000-4000-8000-000000000002', 'page', 1, 'B página 1', 'Evidência B');
+
+insert into public.brain_insights (id, user_id, insight_type, title, statement, status, origin)
+values
+  ('65000000-0000-4000-8000-000000000001', '60000000-0000-4000-8000-000000000001', 'theme', 'Insight A', 'Interpretação A', 'draft', 'manual'),
+  ('65000000-0000-4000-8000-000000000002', '60000000-0000-4000-8000-000000000002', 'theme', 'Insight B', 'Interpretação B', 'draft', 'manual');
+
 insert into public.reflections (id, user_id, title)
 values ('62000000-0000-4000-8000-000000000002', '60000000-0000-4000-8000-000000000002', 'Reflexão B');
 
@@ -63,11 +78,27 @@ begin
 
   insert into public.reflection_memories (reflection_id, memory_id, role)
   values (reflection_a, '61000000-0000-4000-8000-000000000001', 'context');
+  insert into public.reflection_evidence (reflection_id, evidence_id, role)
+  values (reflection_a, '64000000-0000-4000-8000-000000000001', 'supports');
+  insert into public.reflection_insights (reflection_id, insight_id, role)
+  values (reflection_a, '65000000-0000-4000-8000-000000000001', 'context');
 
   begin
     insert into public.reflection_memories (reflection_id, memory_id, role)
     values (reflection_a, '61000000-0000-4000-8000-000000000002', 'context');
     raise exception 'Cross-owner memory link accepted';
+  exception when foreign_key_violation then null;
+  end;
+  begin
+    insert into public.reflection_evidence (reflection_id, evidence_id, role)
+    values (reflection_a, '64000000-0000-4000-8000-000000000002', 'supports');
+    raise exception 'Cross-owner evidence link accepted';
+  exception when foreign_key_violation then null;
+  end;
+  begin
+    insert into public.reflection_insights (reflection_id, insight_id, role)
+    values (reflection_a, '65000000-0000-4000-8000-000000000002', 'context');
+    raise exception 'Cross-owner insight link accepted';
   exception when foreign_key_violation then null;
   end;
 
@@ -83,6 +114,9 @@ begin
   if (select approved_version_id from public.reflections where id = reflection_a) <> revision_a then
     raise exception 'Approved version was not preserved';
   end if;
+  if (select approved_at from public.reflections where id = reflection_a) is null then
+    raise exception 'Approval timestamp was not recorded';
+  end if;
 
   begin
     perform public.submit_reflection_for_review('62000000-0000-4000-8000-000000000002');
@@ -95,13 +129,23 @@ begin
   if (select status from public.reflections where id = reflection_a) <> 'archived' then
     raise exception 'Reflection was not archived';
   end if;
+  if (select approved_version_id from public.reflections where id = reflection_a) <> revision_a or (select approved_at from public.reflections where id = reflection_a) is null then
+    raise exception 'Archiving lost approval history';
+  end if;
 
   delete from public.reflection_memories where reflection_id = reflection_a;
   get diagnostics affected = row_count;
-  if affected <> 0 then raise exception 'Archived reflection provenance was mutable'; end if;
-  if not exists (select 1 from public.reflection_memories where reflection_id = reflection_a) then
-    raise exception 'Archived reflection provenance link disappeared';
-  end if;
+  if affected <> 0 then raise exception 'Archived memory provenance was mutable'; end if;
+  delete from public.reflection_evidence where reflection_id = reflection_a;
+  get diagnostics affected = row_count;
+  if affected <> 0 then raise exception 'Archived evidence provenance was mutable'; end if;
+  delete from public.reflection_insights where reflection_id = reflection_a;
+  get diagnostics affected = row_count;
+  if affected <> 0 then raise exception 'Archived insight provenance was mutable'; end if;
+
+  if not exists (select 1 from public.reflection_memories where reflection_id = reflection_a) then raise exception 'Archived memory link disappeared'; end if;
+  if not exists (select 1 from public.reflection_evidence where reflection_id = reflection_a) then raise exception 'Archived evidence link disappeared'; end if;
+  if not exists (select 1 from public.reflection_insights where reflection_id = reflection_a) then raise exception 'Archived insight link disappeared'; end if;
 
   begin
     insert into public.reflection_versions (reflection_id, stage, content)
@@ -117,9 +161,7 @@ $$;
 
 do $$
 begin
-  if exists (select 1 from public.reflections where title = 'Reflexão B') then
-    raise exception 'A read B reflection';
-  end if;
+  if exists (select 1 from public.reflections where title = 'Reflexão B') then raise exception 'A read B reflection'; end if;
 end;
 $$;
 
@@ -129,9 +171,11 @@ begin
   if (select count(*) from public.reflections) <> 1 then raise exception 'B should see exactly one own reflection'; end if;
   if exists (select 1 from public.reflection_versions) then raise exception 'B read A reflection versions'; end if;
   if exists (select 1 from public.reflection_memories) then raise exception 'B read A reflection memory links'; end if;
+  if exists (select 1 from public.reflection_evidence) then raise exception 'B read A reflection evidence links'; end if;
+  if exists (select 1 from public.reflection_insights) then raise exception 'B read A reflection insight links'; end if;
 end;
 $$;
 
 reset role;
 rollback;
-select 'PASS: versioned reflections, controlled approval, frozen provenance, immutable history and RLS isolation' as result;
+select 'PASS: versioned reflections, controlled approval, frozen provenance, preserved approval history, immutable versions and RLS isolation' as result;
