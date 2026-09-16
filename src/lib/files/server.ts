@@ -7,9 +7,9 @@ import { FILE_BUCKET, FILE_PAGE_SIZE, parseFileKey } from "./validation";
 
 export function filesEnabled(): boolean {
   const configured = process.env.PRIVATE_FILES_ENABLED;
-  if (configured === "true") return true;
-  if (configured === "false") return false;
-  return process.env.VERCEL_ENV === "preview";
+  // Private Storage + RLS are the primary security boundary. Keep the feature
+  // available in deployed environments unless an operator explicitly disables it.
+  return configured !== "false";
 }
 
 export function privateJson(data: unknown, status = 200): Response {
