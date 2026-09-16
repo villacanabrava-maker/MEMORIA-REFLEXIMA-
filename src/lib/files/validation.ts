@@ -3,7 +3,17 @@ export const MAX_FILE_BYTES = 50_000_000;
 export const FILE_PAGE_SIZE = 12;
 export const TUS_CHUNK_BYTES = 6 * 1024 * 1024;
 
-const supportedTypes: Record<string, string> = { pdf: "application/pdf", txt: "text/plain", md: "text/markdown" };
+const supportedTypes: Record<string, string> = {
+  pdf: "application/pdf",
+  txt: "text/plain",
+  md: "text/markdown",
+  csv: "text/csv",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  odt: "application/vnd.oasis.opendocument.text",
+  rtf: "application/rtf",
+  pages: "application/vnd.apple.pages",
+};
 export type FileValidation = { ok: true; contentType: string } | { ok: false; message: string };
 
 export function validateFileMetadata(name: unknown, size: unknown): FileValidation {
@@ -13,7 +23,7 @@ export function validateFileMetadata(name: unknown, size: unknown): FileValidati
   const dot = name.lastIndexOf(".");
   const extension = dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
   const contentType = Object.hasOwn(supportedTypes, extension) ? supportedTypes[extension] : undefined;
-  if (!contentType) return { ok: false, message: "Envie um arquivo PDF, TXT ou Markdown (.md)." };
+  if (!contentType) return { ok: false, message: "Envie PDF, TXT, Markdown, CSV, Word (.doc/.docx), ODT, RTF ou Pages." };
   if (typeof size !== "number" || !Number.isSafeInteger(size) || size < 1 || size > MAX_FILE_BYTES) {
     return { ok: false, message: "O arquivo precisa ter conteúdo e no máximo 50 MB." };
   }
