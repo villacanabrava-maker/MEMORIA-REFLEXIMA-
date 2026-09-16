@@ -57,14 +57,14 @@ begin
     insert into public.brain_insight_memories (insight_id, memory_id, role)
     values (insight_a, '53000000-0000-4000-8000-000000000002', 'supports');
     raise exception 'Cross-owner memory link was accepted';
-  exception when foreign_key_violation or row_security_violation then null;
+  exception when foreign_key_violation or insufficient_privilege then null;
   end;
 
   begin
     insert into public.brain_insight_evidence (insight_id, evidence_id, role)
     values (insight_a, '52000000-0000-4000-8000-000000000002', 'supports');
     raise exception 'Cross-owner evidence link was accepted';
-  exception when foreign_key_violation or row_security_violation then null;
+  exception when foreign_key_violation or insufficient_privilege then null;
   end;
 
   begin
