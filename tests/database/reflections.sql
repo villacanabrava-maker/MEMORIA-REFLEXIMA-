@@ -96,8 +96,22 @@ begin
     raise exception 'Reflection was not archived';
   end if;
 
+  delete from public.reflection_memories where reflection_id = reflection_a;
+  get diagnostics affected = row_count;
+  if affected <> 0 then raise exception 'Archived reflection provenance was mutable'; end if;
+  if not exists (select 1 from public.reflection_memories where reflection_id = reflection_a) then
+    raise exception 'Archived reflection provenance link disappeared';
+  end if;
+
+  begin
+    insert into public.reflection_versions (reflection_id, stage, content)
+    values (reflection_a, 'revision', 'Versão indevida após arquivamento');
+    raise exception 'Archived reflection accepted a new version';
+  exception when insufficient_privilege or check_violation then null;
+  end;
+
   select count(*) into affected from public.reflection_versions where reflection_id = reflection_a;
-  if affected <> 2 then raise exception 'Version history was lost'; end if;
+  if affected <> 2 then raise exception 'Version history was lost or changed'; end if;
 end;
 $$;
 
@@ -120,4 +134,4 @@ $$;
 
 reset role;
 rollback;
-select 'PASS: versioned reflections, controlled approval, immutable history and RLS isolation' as result;
+select 'PASS: versioned reflections, controlled approval, frozen provenance, immutable history and RLS isolation' as result;
