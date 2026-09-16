@@ -47,3 +47,4 @@ jobs:
           run_sql < tests/database/sources.sql
           run_sql < tests/database/library_items.sql
           run_sql < tests/database/evidence.sql
+          run_sql < tests/database/memory.sql
