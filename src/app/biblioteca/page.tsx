@@ -32,20 +32,23 @@ function authorshipLabel(item: CatalogItem): string {
 
 function CatalogCard({ item }: { item: CatalogItem }) {
   const metadata = [item.authorName && item.authorship !== "external" ? item.authorName : null, item.publishedYear ? String(item.publishedYear) : null, item.category, item.theme].filter(Boolean);
-  const content = <>
-    <div className="library-toolbar">
-      <p className="eyebrow">{kindLabel(item.kind)}</p>
-      <span className="file-kind">{item.origin === "document" ? "ARQUIVO" : "TEXTO"}</span>
+  return <li className="source-card">
+    <div>
+      <div className="library-toolbar">
+        <p className="eyebrow">{kindLabel(item.kind)}</p>
+        <span className="file-kind">{item.origin === "document" ? "ARQUIVO" : "TEXTO"}</span>
+      </div>
+      <h3>{item.title}</h3>
+      <p>{authorshipLabel(item)}</p>
+      {metadata.length ? <small>{metadata.join(" · ")}</small> : null}
+      {item.description ? <p>{item.description}</p> : null}
+      <time dateTime={item.updatedAt}>Atualizado em {formatDate(item.updatedAt)}</time>
+      <div className="workspace-actions" style={{ marginTop: 14 }}>
+        {item.href ? <Link className="workspace-button primary" href={item.href}>Abrir conteúdo</Link> : null}
+        <Link className="workspace-button neutral" href={`/biblioteca/catalogo/${item.id}`}>Organizar</Link>
+      </div>
     </div>
-    <h3>{item.title}</h3>
-    <p>{authorshipLabel(item)}</p>
-    {metadata.length ? <small>{metadata.join(" · ")}</small> : null}
-    {item.description ? <p>{item.description}</p> : null}
-    <time dateTime={item.updatedAt}>Atualizado em {formatDate(item.updatedAt)}</time>
-    <span className="source-open">{item.href ? "Abrir conteúdo →" : "Origem indisponível"}</span>
-  </>;
-
-  return <li className="source-card">{item.href ? <Link href={item.href}>{content}</Link> : <div>{content}</div>}</li>;
+  </li>;
 }
 
 export default async function LibraryPage({
