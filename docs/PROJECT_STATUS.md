@@ -1,25 +1,52 @@
-# Estado do projeto
+# Estado do projeto — Memória Reflexiva
 
-## Revisão — 15 de setembro de 2026
+Atualizado em 16/09/2026.
 
-Destino: `villacanabrava-maker/MEMORIA-REFLEXIMA-`, branch `feat/biblioteca-textual`, PR #1. A `main` e o domínio principal permanecem separados.
+## Ambiente atual
 
-### Biblioteca textual
-CRUD, busca, paginação e importação revisável de TXT/Markdown continuam disponíveis na branch de testes, protegidos por autenticação e RLS.
+- Branch de desenvolvimento: `feat/biblioteca-textual`.
+- Produção (`main`) permanece separada e não deve ser alterada antes da validação completa.
+- Vercel Preview conectado ao GitHub e criando deployments automáticos novamente.
+- Supabase usado para autenticação, banco e Storage privado.
 
-### Arquivos originais — limite elevado para 500 MB
-O módulo foi redesenhado para arquivos grandes. O limite de aplicação agora é **500.000.000 bytes (500 MB)** por PDF, TXT ou Markdown.
+## Biblioteca textual
 
-Arquivos não atravessam uma função da Vercel: o navegador envia diretamente ao Supabase Storage usando o protocolo **TUS resumível**, com blocos de 6 MiB, progresso visível e tentativa de retomada após interrupções. O caminho do objeto começa pelo `user.id` autenticado e não usa `upsert`. Downloads grandes usam URL assinada temporária, evitando carregar centenas de megabytes na memória da função Next.js.
+- Login e rotas privadas.
+- Criar, listar, buscar, paginar, abrir, editar e excluir textos.
+- RLS por usuário em `public.sources`.
+- Importação segura de TXT e Markdown com revisão antes de salvar.
 
-O bucket continua **desativado** por `PRIVATE_FILES_ENABLED=false` porque a ferramenta administrativa ainda não permitiu criar `library-originals-v1`. O arquivo `supabase/storage/library-originals.sql` registra bucket privado, limite de 500 MB, tipos aceitos e RLS por pasta do usuário; ele não foi aplicado.
+## Arquivos privados
 
-### Limite da plataforma
-A documentação atual do Supabase informa que o limite global de Storage do projeto também precisa permitir 500 MB. Projetos Free têm teto global de 50 MB; Pro e planos superiores podem configurar até 500 GB. Portanto, o app está preparado para 500 MB, mas o Storage só aceitará esse tamanho quando o plano/configuração global do projeto permitir.
+- Um único fluxo principal: **Adicionar arquivo**.
+- Aceita qualquer formato de arquivo até 50 MB.
+- Upload resumível TUS direto para o Supabase Storage, sem atravessar a memória da Vercel.
+- Bucket privado `library-originals-v1`.
+- Objetos organizados pela pasta do `auth.uid()` e protegidos por RLS.
+- Arquivos aparecem automaticamente na Biblioteca após o upload.
+- Biblioteca principal e lista completa mostram nome, formato, tamanho, data, download e exclusão.
+- Cada arquivo agora possui uma página própria de **Visualização** dentro da Biblioteca.
+- TXT e Markdown de até 400 KB já exibem o texto extraído sem modificar o original.
+- Outros formatos continuam preservados e exibem o estado de extração ainda não disponível.
 
-### Próximos passos
-1. Conferir CI e Vercel Preview do commit de 500 MB.
-2. Criar o bucket privado e políticas pelo caminho administrativo autorizado do Supabase.
-3. Garantir limite global de Storage >= 500 MB no projeto.
-4. Ativar `PRIVATE_FILES_ENABLED=true` somente na prévia.
-5. Validar upload resumível, retomada, download e exclusão com arquivos fictícios antes de produção.
+## Última validação concluída
+
+Commit: `a1e765ac268520aa4d8b3a75c2f73631efd298f1`.
+
+- Application quality: SUCCESS — run `35052446174`.
+- Database security: SUCCESS — run `35052446278`.
+- Vercel Preview: READY — deployment `dpl_EQ6Y4TiUHdCRZGaJdxRCZ6LikbaR`.
+- Branch alias: `memoria-reflexima-git-feat-biblioteca-textual-roberth4.vercel.app`.
+
+## Próxima etapa
+
+Ampliar a leitura automática mantendo sempre o original intacto:
+
+1. DOCX — extração de texto bruto com limite próprio de processamento.
+2. PDF — extração página a página com limite de tamanho/páginas.
+3. ODT e RTF — somente após validar abordagem segura.
+4. DOC antigo, Pages e formatos desconhecidos permanecem apenas como original enquanto não houver extrator confiável.
+
+O limite de 50 MB é de armazenamento, não de processamento. A extração deve usar limites menores e falhar com segurança, mantendo o original disponível.
+
+Depois da camada de extração: texto revisável → evidências/trechos → memória → relações → reflexão/IA com rastreabilidade da fonte.
