@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { DeleteFileButton } from "@/components/delete-file-button";
-import { PdfProcessingProgress } from "@/components/pdf-processing-progress";
-import { extractStoredText, getFile, getPdfProcessingState } from "@/lib/files/server";
+import { FileProcessingProgress } from "@/components/file-processing-progress";
+import { ensureFileProcessing, getFile, getFileProcessingState } from "@/lib/files/server";
 import { formatFileSize } from "@/lib/files/validation";
 import { formatDate } from "@/lib/sources/data";
 import "../files.css";
@@ -11,19 +11,15 @@ export default async function FilePage({ params }: { params: Promise<{ key: stri
   const result = await getFile(key);
 
   if (result.status !== "ready") {
-    const message = result.status === "missing"
-      ? "Este arquivo não foi encontrado na sua biblioteca."
-      : result.status === "disabled"
-        ? "A biblioteca de arquivos não está ativa neste ambiente."
-        : "Não foi possível abrir este arquivo agora.";
+    const message = result.status === "missing" ? "Este arquivo não foi encontrado na sua biblioteca." : result.status === "disabled" ? "A biblioteca de arquivos não está ativa neste ambiente." : "Não foi possível abrir este arquivo agora.";
     return <section className="library-panel"><Link className="workspace-button neutral" href="/biblioteca">← Biblioteca</Link><h2>Arquivo indisponível</h2><p>{message}</p></section>;
   }
 
   const { file } = result;
+  await ensureFileProcessing(key, file);
+  const processing = await getFileProcessingState(key);
   const extension = file.name.includes(".") ? file.name.split(".").pop()?.toUpperCase() : "ARQUIVO";
   const isPdf = /\.pdf$/i.test(file.name);
-  const extraction = isPdf ? null : await extractStoredText(key);
-  const pdfState = isPdf ? await getPdfProcessingState(key) : null;
   const encodedKey = encodeURIComponent(file.key);
 
   return <article className="library-panel">
@@ -43,36 +39,25 @@ export default async function FilePage({ params }: { params: Promise<{ key: stri
       <DeleteFileButton fileKey={file.key} name={file.name} />
     </div>
 
-    {isPdf ? <>
-      <PdfProcessingProgress fileKey={file.key} initial={pdfState!} />
-      <section className="library-panel">
-        <p className="eyebrow">Visualização do PDF</p>
-        <h3>Documento original</h3>
-        <p className="field-help">A visualização usa um acesso temporário assinado ao arquivo privado. O PDF permanece no Storage e não se torna público.</p>
-        <iframe className="pdf-preview" src={`/api/arquivos/${encodedKey}?modo=visualizar`} title={`PDF: ${file.name}`} />
-      </section>
-      <section className="library-panel">
-        <p className="eyebrow">Texto extraído</p>
-        <h3>Páginas já processadas</h3>
-        {pdfState!.previewPages.length ? <div className="source-body">
-          {pdfState!.previewPages.map((page) => <section key={page.pageNumber} className="pdf-text-page">
-            <h4>Página {page.pageNumber}</h4>
-            <p>{page.content || "[Página sem texto selecionável]"}</p>
-          </section>)}
-          {pdfState!.hasMorePreview ? <p className="field-help">A prévia mostra as primeiras páginas processadas. O restante permanece armazenado página a página para busca, revisão e uso futuro pela Memória Reflexiva.</p> : null}
-        </div> : <p className="field-help">O texto aparecerá aqui conforme os primeiros lotes forem concluídos.</p>}
-      </section>
-    </> : <section className="library-panel">
-      <p className="eyebrow">Conteúdo do documento</p>
-      {extraction?.status === "ready" ? <>
-        <h3>{extraction.format === "docx" ? "Texto extraído do Word" : "Texto extraído"}</h3>
-        {extraction.format === "docx" ? <p className="field-help">O aplicativo leu o texto principal do DOCX. Formatação visual, imagens e elementos complexos não alteram o arquivo original e não são reproduzidos nesta etapa.</p> : null}
-        {(extraction.normalizedLineEndings || extraction.removedBom) ? <p className="field-help">O texto foi normalizado apenas para visualização. O arquivo original não foi alterado.</p> : null}
-        <div className="source-body">{extraction.input.content}</div>
-      </> : <>
-        <h3>Original salvo com segurança</h3>
-        <p>{extraction?.message}</p>
-      </>}
-    </section>}
+    <FileProcessingProgress fileKey={file.key} initial={processing} />
+
+    {isPdf ? <section className="library-panel">
+      <p className="eyebrow">Visualização do PDF</p>
+      <h3>Documento original</h3>
+      <p className="field-help">A visualização usa acesso temporário assinado. O PDF permanece privado.</p>
+      <iframe className="pdf-preview" src={`/api/arquivos/${encodedKey}?modo=visualizar`} title={`PDF: ${file.name}`} />
+    </section> : null}
+
+    <section className="library-panel">
+      <p className="eyebrow">Conteúdo derivado</p>
+      <h3>{processing.status === "completed" ? "Conteúdo extraído" : "Prévia do que já foi processado"}</h3>
+      {processing.pagePreview.length ? <div className="source-body">
+        {processing.pagePreview.map((page) => <section key={page.pageNumber} className="pdf-text-page"><h4>Página {page.pageNumber}</h4><p>{page.content || "[Página sem texto selecionável]"}</p></section>)}
+        {processing.hasMorePreview ? <p className="field-help">A tela mostra apenas uma prévia; o restante fica salvo página a página.</p> : null}
+      </div> : processing.chunkPreview.length ? <div className="source-body">
+        {processing.chunkPreview.map((chunk) => <section key={chunk.chunkIndex}><h4>{chunk.label ?? `Parte ${chunk.chunkIndex + 1}`}</h4><p>{chunk.content}</p></section>)}
+        {processing.hasMorePreview ? <p className="field-help">A tela mostra apenas as primeiras partes; o restante também está armazenado.</p> : null}
+      </div> : <p className="field-help">O conteúdo aparecerá aqui quando o processador deste formato produzir texto. O arquivo original continua disponível independentemente disso.</p>}
+    </section>
   </article>;
 }
