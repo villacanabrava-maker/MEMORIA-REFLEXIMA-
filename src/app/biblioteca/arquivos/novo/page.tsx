@@ -10,9 +10,9 @@ export default async function NewFilePage() {
   await requireUser();
   if (!filesEnabled()) return <FilesNotice status="disabled" />;
   return <section className="library-panel">
-    <p className="eyebrow">Entrada única de arquivos</p>
-    <h2>Adicione PDF, TXT ou Markdown no mesmo lugar</h2>
-    <p>Escolha o arquivo uma única vez. O aplicativo preserva o original em área privada e depois organiza automaticamente por tipo. TXT e Markdown poderão ser transformados em texto editável; PDF permanece no mesmo fluxo e receberá extração própria na etapa seguinte.</p>
+    <p className="eyebrow">Entrada única</p>
+    <h2>Adicionar arquivo</h2>
+    <p>Este é o único ponto de entrada. Escolha qualquer arquivo com até 50 MB. O original será preservado em área privada; formatos compatíveis poderão receber leitura, extração e organização específicas sem alterar o arquivo enviado.</p>
     <FileUploadForm requestId={randomUUID()} />
   </section>;
 }
