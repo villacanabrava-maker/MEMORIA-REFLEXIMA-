@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import { formatFileSize, validateFileMetadata } from "@/lib/files/validation";
 import { resumableUpload } from "@/lib/files/tus";
 
 export function FileUploadForm({ requestId }: { requestId: string }) {
+  const router = useRouter();
   const [message, setMessage] = useState(""); const [selection, setSelection] = useState(""); const [pending, setPending] = useState(false); const [progress, setProgress] = useState(0);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (pending) return;
@@ -18,16 +20,11 @@ export function FileUploadForm({ requestId }: { requestId: string }) {
       const key = await resumableUpload(file, requestId, setProgress);
       setMessage("Arquivo guardado. Colocando na fila de processamento…");
       const supabase = createBrowserSupabaseClient();
-      const { error } = await supabase.rpc("enqueue_library_file_processing", {
-        p_storage_key: key,
-        p_file_name: file.name,
-        p_mime_type: file.type || null,
-        p_file_size: file.size,
-        p_force: false,
-      });
+      const { error } = await supabase.rpc("enqueue_library_file_processing", { p_storage_key: key, p_file_name: file.name, p_mime_type: file.type || null, p_file_size: file.size, p_force: false });
       if (error) throw new Error("O arquivo foi salvo, mas não entrou na fila automática. Abra o arquivo na Biblioteca para tentar novamente.");
       setMessage("Arquivo salvo e enfileirado. Abrindo o documento…");
-      window.location.assign(`/biblioteca/arquivos/${encodeURIComponent(key)}`);
+      router.push(`/biblioteca/arquivos/${encodeURIComponent(key)}`);
+      router.refresh();
     } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível concluir o envio."); setPending(false); }
   }
   return <form className="source-form" onSubmit={submit} aria-busy={pending}>
