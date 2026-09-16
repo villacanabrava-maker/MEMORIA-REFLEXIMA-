@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/require-user";
 import { isVersion } from "@/lib/sources/validation";
+import { getSupabaseEnv } from "@/lib/supabase/env";
 import {
   isBrainId,
   isOptionalUuid,
@@ -12,6 +13,67 @@ import {
   type BrainFeedbackState,
   type BrainFormState,
 } from "@/lib/brain/validation";
+
+function aiRedirect(query: string, code: string): never {
+  const params = new URLSearchParams({ q: query, ia: code });
+  redirect(`/cerebro/contexto?${params.toString()}`);
+}
+
+function providerErrorCode(value: unknown): string {
+  if (!value || typeof value !== "object") return "falha";
+  const error = (value as Record<string, unknown>).error;
+  return typeof error === "string" && error.length <= 80 ? error : "falha";
+}
+
+export async function generateBrainInsights(formData: FormData): Promise<void> {
+  const rawQuery = formData.get("query");
+  const query = typeof rawQuery === "string" ? rawQuery.trim().slice(0, 200) : "";
+  if (!query) aiRedirect("", "consulta_invalida");
+
+  const { supabase } = await requireUser();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) redirect("/login?erro=sessao");
+
+  const { url, publishableKey } = getSupabaseEnv();
+  let response: Response;
+  try {
+    response = await fetch(`${url}/functions/v1/brain-insight-generator`, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        apikey: publishableKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query }),
+    });
+  } catch {
+    aiRedirect(query, "conexao");
+  }
+
+  let payload: unknown = null;
+  try {
+    payload = await response.json();
+  } catch {
+    // A resposta do provedor/função pode não conter JSON em uma falha de infraestrutura.
+  }
+
+  if (!response.ok) aiRedirect(query, providerErrorCode(payload));
+  if (!payload || typeof payload !== "object" || (payload as Record<string, unknown>).ok !== true) {
+    aiRedirect(query, providerErrorCode(payload));
+  }
+
+  const insightIds = (payload as Record<string, unknown>).insight_ids;
+  const firstInsightId = Array.isArray(insightIds) && typeof insightIds[0] === "string" ? insightIds[0] : null;
+
+  revalidatePath("/");
+  revalidatePath("/cerebro");
+  revalidatePath("/cerebro/contexto");
+
+  if (firstInsightId && isBrainId(firstInsightId)) redirect(`/cerebro/${firstInsightId}?origem=ia`);
+  redirect("/cerebro?gerado=ia");
+}
 
 export async function saveBrainInsight(previous: BrainFormState, formData: FormData): Promise<BrainFormState> {
   void previous;
