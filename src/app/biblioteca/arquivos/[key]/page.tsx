@@ -41,13 +41,14 @@ export default async function FilePage({ params }: { params: Promise<{ key: stri
     <section className="library-panel">
       <p className="eyebrow">Conteúdo do documento</p>
       {extraction.status === "ready" ? <>
-        <h3>Texto extraído</h3>
+        <h3>Texto extraído{extraction.format === "docx" ? " do Word" : ""}</h3>
+        {extraction.format === "docx" ? <p className="field-help">O aplicativo leu o texto principal do DOCX. Formatação visual, imagens e elementos complexos não alteram o arquivo original e não são reproduzidos nesta etapa.</p> : null}
         {(extraction.normalizedLineEndings || extraction.removedBom) ? <p className="field-help">O texto foi normalizado apenas para visualização. O arquivo original não foi alterado.</p> : null}
         <div className="source-body">{extraction.input.content}</div>
       </> : <>
         <h3>Original salvo com segurança</h3>
         <p>{extraction.message}</p>
-        <p className="field-help">A próxima etapa do projeto ampliará a leitura automática para DOCX e PDF. Formatos sem extrator confiável continuarão disponíveis como original.</p>
+        <p className="field-help">TXT, Markdown e DOCX já podem ser lidos. A próxima ampliação será PDF. Formatos sem extrator confiável continuam disponíveis como original.</p>
       </>}
     </section>
   </article>;
