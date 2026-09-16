@@ -5,12 +5,15 @@ import { FILE_BUCKET, parseFileKey } from "@/lib/files/validation";
 type Context = { params: Promise<{ key: string }> };
 function sameOrigin(request: Request): boolean { const origin = request.headers.get("origin"); return origin === new URL(request.url).origin && request.headers.get("sec-fetch-site") !== "cross-site"; }
 
-export async function GET(_request: Request, context: Context) {
+export async function GET(request: Request, context: Context) {
   const access = await fileApiAccess(); if (!access.ok) return access.response;
   const { key } = await context.params; const parsed = parseFileKey(key); if (!parsed) return privateJson({ message: "Arquivo não encontrado." }, 404);
   const path = `${access.user.id}/${key}`;
-  const { data, error } = await access.supabase.storage.from(FILE_BUCKET).createSignedUrl(path, 60, { download: true });
-  if (error || !data?.signedUrl) return privateJson({ message: "Não foi possível preparar o download." }, 404);
+  const inline = new URL(request.url).searchParams.get("modo") === "visualizar" && /\.pdf$/i.test(parsed.originalName);
+  const { data, error } = inline
+    ? await access.supabase.storage.from(FILE_BUCKET).createSignedUrl(path, 60)
+    : await access.supabase.storage.from(FILE_BUCKET).createSignedUrl(path, 60, { download: true });
+  if (error || !data?.signedUrl) return privateJson({ message: inline ? "Não foi possível preparar a visualização." : "Não foi possível preparar o download." }, 404);
   return Response.redirect(data.signedUrl, 302);
 }
 
