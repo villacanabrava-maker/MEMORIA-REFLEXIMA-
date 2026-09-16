@@ -3,7 +3,7 @@ export const MAX_FILE_BYTES = 50_000_000;
 export const FILE_PAGE_SIZE = 12;
 export const TUS_CHUNK_BYTES = 6 * 1024 * 1024;
 
-const supportedTypes: Record<string, string> = {
+const knownTypes: Record<string, string> = {
   pdf: "application/pdf",
   txt: "text/plain",
   md: "text/markdown",
@@ -20,14 +20,12 @@ export function validateFileMetadata(name: unknown, size: unknown): FileValidati
   if (typeof name !== "string" || !name.trim() || /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069/\\]/.test(name) || new TextEncoder().encode(name).length > 150) {
     return { ok: false, message: "Use um nome de arquivo curto, sem barras ou caracteres de controle." };
   }
-  const dot = name.lastIndexOf(".");
-  const extension = dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
-  const contentType = Object.hasOwn(supportedTypes, extension) ? supportedTypes[extension] : undefined;
-  if (!contentType) return { ok: false, message: "Envie PDF, TXT, Markdown, CSV, Word (.doc/.docx), ODT, RTF ou Pages." };
   if (typeof size !== "number" || !Number.isSafeInteger(size) || size < 1 || size > MAX_FILE_BYTES) {
     return { ok: false, message: "O arquivo precisa ter conteúdo e no máximo 50 MB." };
   }
-  return { ok: true, contentType };
+  const dot = name.lastIndexOf(".");
+  const extension = dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
+  return { ok: true, contentType: knownTypes[extension] ?? "application/octet-stream" };
 }
 
 export function isUploadId(value: unknown): value is string {
