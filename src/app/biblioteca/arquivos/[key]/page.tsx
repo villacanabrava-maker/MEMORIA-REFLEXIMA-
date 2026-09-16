@@ -1,20 +1,11 @@
 import Link from "next/link";
 import { DeleteFileButton } from "@/components/delete-file-button";
+import { EvidenceSelector } from "@/components/evidence-selector";
 import { FileProcessingProgress } from "@/components/file-processing-progress";
-import { saveEvidence } from "@/app/biblioteca/evidencias/actions";
 import { ensureFileProcessing, getFile, getFileProcessingState } from "@/lib/files/server";
 import { formatFileSize } from "@/lib/files/validation";
 import { formatDate } from "@/lib/sources/data";
 import "../files.css";
-
-function EvidenceButton({ fileKey, kind, index }: { fileKey: string; kind: "page" | "chunk"; index: number }) {
-  return <form action={saveEvidence}>
-    <input type="hidden" name="key" value={fileKey} />
-    <input type="hidden" name="kind" value={kind} />
-    <input type="hidden" name="index" value={index} />
-    <button className="workspace-button neutral" type="submit">Salvar como evidência</button>
-  </form>;
-}
 
 export default async function FilePage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ evidencia?: string }> }) {
   const { key } = await params;
@@ -52,7 +43,7 @@ export default async function FilePage({ params, searchParams }: { params: Promi
       <DeleteFileButton fileKey={file.key} name={file.name} />
     </div>
 
-    {evidenceStatus === "salva" ? <p className="form-status" role="status">Evidência salva com vínculo à origem.</p> : null}
+    {evidenceStatus === "salva" ? <p className="form-status" role="status">Evidência salva com vínculo preciso à origem.</p> : null}
     {evidenceStatus && evidenceStatus !== "salva" ? <p className="field-error" role="status">Não foi possível salvar esta evidência. A fonte original não foi alterada.</p> : null}
 
     <FileProcessingProgress fileKey={file.key} initial={processing} />
@@ -68,10 +59,16 @@ export default async function FilePage({ params, searchParams }: { params: Promi
       <p className="eyebrow">Conteúdo derivado</p>
       <h3>{processing.status === "completed" ? "Conteúdo extraído" : "Prévia do que já foi processado"}</h3>
       {processing.pagePreview.length ? <div className="source-body">
-        {processing.pagePreview.map((page) => <section key={page.pageNumber} className="pdf-text-page"><h4>Página {page.pageNumber}</h4><p>{page.content || "[Página sem texto selecionável]"}</p>{page.content ? <EvidenceButton fileKey={file.key} kind="page" index={page.pageNumber} /> : null}</section>)}
+        {processing.pagePreview.map((page) => <section key={page.pageNumber} className="pdf-text-page">
+          <h4>Página {page.pageNumber}</h4>
+          {page.content ? <EvidenceSelector fileKey={file.key} kind="page" index={page.pageNumber} content={page.content} /> : <p>[Página sem texto selecionável]</p>}
+        </section>)}
         {processing.hasMorePreview ? <p className="field-help">A tela mostra apenas uma prévia; o restante fica salvo página a página.</p> : null}
       </div> : processing.chunkPreview.length ? <div className="source-body">
-        {processing.chunkPreview.map((chunk) => <section key={chunk.chunkIndex}><h4>{chunk.label ?? `Parte ${chunk.chunkIndex + 1}`}</h4><p>{chunk.content}</p><EvidenceButton fileKey={file.key} kind="chunk" index={chunk.chunkIndex} /></section>)}
+        {processing.chunkPreview.map((chunk) => <section key={chunk.chunkIndex}>
+          <h4>{chunk.label ?? `Parte ${chunk.chunkIndex + 1}`}</h4>
+          <EvidenceSelector fileKey={file.key} kind="chunk" index={chunk.chunkIndex} content={chunk.content} />
+        </section>)}
         {processing.hasMorePreview ? <p className="field-help">A tela mostra apenas as primeiras partes; o restante também está armazenado.</p> : null}
       </div> : <p className="field-help">O conteúdo aparecerá aqui quando o processador deste formato produzir texto. O arquivo original continua disponível independentemente disso.</p>}
     </section>
