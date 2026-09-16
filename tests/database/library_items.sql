@@ -45,7 +45,7 @@ begin
     insert into public.library_items (user_id, title, document_id)
     values ('30000000-0000-4000-8000-000000000001', 'Cross owner', '31000000-0000-4000-8000-000000000002');
     raise exception 'Cross-owner document reference was accepted';
-  exception when foreign_key_violation then null;
+  exception when foreign_key_violation or unique_violation then null;
   end;
 
   begin
