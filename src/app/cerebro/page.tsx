@@ -15,7 +15,10 @@ export default async function BrainPage() {
           <h2>O que seu acervo sugere sobre sua forma de pensar</h2>
           <p>Meu Cérebro registra hipóteses interpretativas apoiadas por memórias e evidências. Nenhuma interpretação é tratada como uma verdade definitiva sobre você.</p>
         </div>
-        <Link className="workspace-button primary" href="/cerebro/novo">＋ Nova interpretação</Link>
+        <div className="workspace-actions">
+          <Link className="workspace-button neutral" href="/cerebro/contexto">Pesquisar contexto</Link>
+          <Link className="workspace-button primary" href="/cerebro/novo">＋ Nova interpretação</Link>
+        </div>
       </div>
     </section>
 
@@ -32,8 +35,8 @@ export default async function BrainPage() {
         </Link>
       </li>)}</ul> : <div>
         <h3>Meu Cérebro ainda está vazio</h3>
-        <p>Comece registrando manualmente uma interpretação baseada em suas memórias ou evidências. A geração automática por IA será adicionada somente depois que essa camada de proveniência e revisão estiver consolidada.</p>
-        <Link className="workspace-button primary" href="/cerebro/novo">Criar a primeira interpretação</Link>
+        <p>Comece registrando manualmente uma interpretação baseada em suas memórias ou evidências. Você também pode testar a recuperação de contexto antes da futura geração automática.</p>
+        <div className="workspace-actions"><Link className="workspace-button neutral" href="/cerebro/contexto">Pesquisar contexto</Link><Link className="workspace-button primary" href="/cerebro/novo">Criar a primeira interpretação</Link></div>
       </div>}
     </section>
   </>;
