@@ -15,7 +15,8 @@ function FileCards({ files }: { files: LibraryFile[] }) {
     <p>{formatFileSize(file.size)}{file.createdAt && Number.isFinite(Date.parse(file.createdAt)) ? ` · ${formatDate(file.createdAt)}` : ""}</p>
     <small>Original preservado em área privada</small>
     <div className="workspace-actions">
-      <a className="workspace-button neutral" href={`/api/arquivos/${file.key}`}>Abrir / baixar</a>
+      <Link className="workspace-button primary" href={`/biblioteca/arquivos/${file.key}`}>Visualizar</Link>
+      <a className="workspace-button neutral" href={`/api/arquivos/${file.key}`}>Baixar original</a>
       <DeleteFileButton fileKey={file.key} name={file.name} />
     </div>
   </li>)}</ul>;
@@ -37,7 +38,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
 
     {files.status === "ready" ? <section className="library-panel">
       <div className="library-toolbar"><div><p className="eyebrow">Arquivos enviados</p><h2>Seus arquivos</h2></div>{files.hasNext ? <Link className="workspace-button neutral" href="/biblioteca/arquivos">Ver todos</Link> : null}</div>
-      <p className="files-explanation">Todo arquivo concluído aparece aqui automaticamente. Os mais recentes ficam primeiro.</p>
+      <p className="files-explanation">Todo arquivo concluído aparece aqui automaticamente. Clique em Visualizar para abrir o documento dentro da Biblioteca.</p>
       {files.unknownFiles ? <p role="status" className="field-error">Há um item preservado cujo nome interno não pôde ser exibido.</p> : null}
       {files.files.length ? <FileCards files={files.files} /> : <p>Nenhum arquivo enviado ainda.</p>}
     </section> : null}
