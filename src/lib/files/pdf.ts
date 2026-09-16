@@ -76,6 +76,6 @@ export async function extractPdfBatchFromUrl(
 
     return { totalPages: pdf.numPages, startPage, endPage, pages };
   } finally {
-    try { await pdf.destroy(); } catch { /* liberar o parser nao altera o original */ }
+    try { await loadingTask.destroy(); } catch { /* liberar o parser nao altera o original */ }
   }
 }
