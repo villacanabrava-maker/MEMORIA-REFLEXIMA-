@@ -31,7 +31,7 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v4
-      - name: Validate private sources in disposable PostgreSQL 17
+      - name: Validate private database model in disposable PostgreSQL 17
         shell: bash
         run: |
           set -euo pipefail
@@ -45,3 +45,4 @@ jobs:
             run_sql < "$migration"
           done
           run_sql < tests/database/sources.sql
+          run_sql < tests/database/library_items.sql
