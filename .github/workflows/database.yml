@@ -50,3 +50,4 @@ jobs:
           run_sql < tests/database/memory.sql
           run_sql < tests/database/brain.sql
           run_sql < tests/database/brain_generation.sql
+          run_sql < tests/database/reflections.sql
