@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth/require-user";
 import { decodeTextFile, MAX_IMPORT_BYTES, type SourceInput } from "@/lib/sources/validation";
 import { extractDocxText, MAX_DOCX_PROCESS_BYTES } from "./docx";
-import { extractPdfText, MAX_PDF_PROCESS_BYTES } from "./pdf";
 import { FILE_BUCKET, FILE_PAGE_SIZE, parseFileKey } from "./validation";
 
 export function filesEnabled(): boolean {
@@ -95,8 +94,49 @@ export async function getFile(key: string): Promise<FileResult> {
   }
 }
 
+export type PdfProcessingState = {
+  status: "not_started" | "pending" | "processing" | "completed" | "needs_ocr" | "error";
+  totalPages: number | null;
+  processedPages: number;
+  lastError: string | null;
+  previewPages: Array<{ pageNumber: number; content: string }>;
+  hasMorePreview: boolean;
+};
+
+export async function getPdfProcessingState(key: string): Promise<PdfProcessingState> {
+  const parsed = parseFileKey(key);
+  if (!parsed || !/\.pdf$/i.test(parsed.originalName)) {
+    return { status: "not_started", totalPages: null, processedPages: 0, lastError: null, previewPages: [], hasMorePreview: false };
+  }
+  const { supabase, user } = await requireUser();
+  const { data: document, error } = await supabase
+    .from("library_documents")
+    .select("id,status,total_pages,processed_pages,last_error")
+    .eq("user_id", user.id)
+    .eq("storage_key", key)
+    .maybeSingle();
+  if (error || !document) {
+    return { status: "not_started", totalPages: null, processedPages: 0, lastError: null, previewPages: [], hasMorePreview: false };
+  }
+  const { data: pages } = await supabase
+    .from("library_document_pages")
+    .select("page_number,content")
+    .eq("document_id", document.id)
+    .order("page_number", { ascending: true })
+    .limit(13);
+  const preview = pages ?? [];
+  return {
+    status: document.status as PdfProcessingState["status"],
+    totalPages: document.total_pages,
+    processedPages: document.processed_pages,
+    lastError: document.last_error,
+    previewPages: preview.slice(0, 12).map((page) => ({ pageNumber: page.page_number, content: page.content })),
+    hasMorePreview: preview.length > 12,
+  };
+}
+
 export type TextExtractionResult =
-  | { status: "ready"; input: SourceInput; normalizedLineEndings: boolean; removedBom: boolean; format: "text" | "docx" | "pdf"; pages?: number }
+  | { status: "ready"; input: SourceInput; normalizedLineEndings: boolean; removedBom: boolean; format: "text" | "docx" }
   | { status: "unsupported" | "too_large" | "invalid" | "missing" | "error"; message: string };
 
 export async function extractStoredText(key: string): Promise<TextExtractionResult> {
@@ -104,8 +144,7 @@ export async function extractStoredText(key: string): Promise<TextExtractionResu
   if (!parsed) return { status: "invalid", message: "O identificador deste arquivo é inválido." };
   const isText = /\.(txt|md)$/i.test(parsed.originalName);
   const isDocx = /\.docx$/i.test(parsed.originalName);
-  const isPdf = /\.pdf$/i.test(parsed.originalName);
-  if (!isText && !isDocx && !isPdf) return { status: "unsupported", message: "A leitura de conteúdo está disponível para TXT, Markdown, DOCX e PDF. O original continua preservado e disponível para download." };
+  if (!isText && !isDocx) return { status: "unsupported", message: "A leitura direta está disponível para TXT, Markdown e DOCX. PDFs usam processamento paginado e retomável para suportar livros grandes." };
 
   const { supabase, user } = await requireUser();
   if (!filesEnabled()) return { status: "error", message: "O armazenamento de arquivos ainda não está ativo neste ambiente." };
@@ -116,38 +155,20 @@ export async function extractStoredText(key: string): Promise<TextExtractionResu
     const exact = listed.find((item) => item.name === key && item.id);
     if (!exact) return { status: "missing", message: "Este arquivo não foi encontrado na sua área privada." };
     const listedSize = typeof exact.metadata?.size === "number" ? exact.metadata.size : null;
-    const processLimit = isDocx ? MAX_DOCX_PROCESS_BYTES : isPdf ? MAX_PDF_PROCESS_BYTES : MAX_IMPORT_BYTES;
+    const processLimit = isDocx ? MAX_DOCX_PROCESS_BYTES : MAX_IMPORT_BYTES;
     if (listedSize !== null && listedSize > processLimit) {
-      const message = isDocx
-        ? "Para visualizar DOCX, o arquivo precisa ter até 8 MB. O original continua preservado."
-        : isPdf
-          ? "Para extrair texto de PDF, o arquivo precisa ter até 8 MB. O original continua preservado."
-          : "Para visualizar o texto extraído, TXT/Markdown precisa ter até 400 KB. O original continua preservado.";
-      return { status: "too_large", message };
+      return { status: "too_large", message: isDocx ? "Para visualizar DOCX, o arquivo precisa ter até 8 MB. O original continua preservado." : "Para visualizar TXT/Markdown, o arquivo precisa ter até 400 KB. O original continua preservado." };
     }
 
     const { data, error } = await supabase.storage.from(FILE_BUCKET).download(path);
     if (error || !data) return { status: "error", message: "Não foi possível ler este arquivo agora." };
-    if (data.size > processLimit) {
-      const message = isDocx
-        ? "Para visualizar DOCX, o arquivo precisa ter até 8 MB. O original continua preservado."
-        : isPdf
-          ? "Para extrair texto de PDF, o arquivo precisa ter até 8 MB. O original continua preservado."
-          : "Para visualizar o texto extraído, TXT/Markdown precisa ter até 400 KB. O original continua preservado.";
-      return { status: "too_large", message };
-    }
+    if (data.size > processLimit) return { status: "too_large", message: "O arquivo ultrapassa o limite seguro de leitura direta. O original continua preservado." };
     const bytes = new Uint8Array(await data.arrayBuffer());
 
     if (isDocx) {
       const extracted = extractDocxText(parsed.originalName, bytes);
       if (!extracted.ok) return { status: extracted.code === "too_large" ? "too_large" : "invalid", message: extracted.message };
       return { status: "ready", input: extracted.value, normalizedLineEndings: false, removedBom: false, format: "docx" };
-    }
-
-    if (isPdf) {
-      const extracted = await extractPdfText(parsed.originalName, bytes);
-      if (!extracted.ok) return { status: extracted.code === "too_large" ? "too_large" : extracted.code === "timeout" ? "error" : "invalid", message: extracted.message };
-      return { status: "ready", input: extracted.value, normalizedLineEndings: false, removedBom: false, format: "pdf", pages: extracted.pages };
     }
 
     const decoded = decodeTextFile(parsed.originalName, bytes);
