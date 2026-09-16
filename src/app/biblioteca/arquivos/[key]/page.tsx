@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DeleteFileButton } from "@/components/delete-file-button";
-import { extractStoredText, getFile } from "@/lib/files/server";
+import { PdfProcessingProgress } from "@/components/pdf-processing-progress";
+import { extractStoredText, getFile, getPdfProcessingState } from "@/lib/files/server";
 import { formatFileSize } from "@/lib/files/validation";
 import { formatDate } from "@/lib/sources/data";
 import "../files.css";
@@ -19,9 +20,10 @@ export default async function FilePage({ params }: { params: Promise<{ key: stri
   }
 
   const { file } = result;
-  const extraction = await extractStoredText(key);
   const extension = file.name.includes(".") ? file.name.split(".").pop()?.toUpperCase() : "ARQUIVO";
   const isPdf = /\.pdf$/i.test(file.name);
+  const extraction = isPdf ? null : await extractStoredText(key);
+  const pdfState = isPdf ? await getPdfProcessingState(key) : null;
   const encodedKey = encodeURIComponent(file.key);
 
   return <article className="library-panel">
@@ -41,26 +43,36 @@ export default async function FilePage({ params }: { params: Promise<{ key: stri
       <DeleteFileButton fileKey={file.key} name={file.name} />
     </div>
 
-    {isPdf ? <section className="library-panel">
-      <p className="eyebrow">Visualização do PDF</p>
-      <h3>Documento original</h3>
-      <p className="field-help">A visualização usa um acesso temporário assinado ao arquivo privado. O PDF permanece no Storage e não se torna público.</p>
-      <iframe className="pdf-preview" src={`/api/arquivos/${encodedKey}?modo=visualizar`} title={`PDF: ${file.name}`} />
-    </section> : null}
-
-    <section className="library-panel">
+    {isPdf ? <>
+      <PdfProcessingProgress fileKey={file.key} initial={pdfState!} />
+      <section className="library-panel">
+        <p className="eyebrow">Visualização do PDF</p>
+        <h3>Documento original</h3>
+        <p className="field-help">A visualização usa um acesso temporário assinado ao arquivo privado. O PDF permanece no Storage e não se torna público.</p>
+        <iframe className="pdf-preview" src={`/api/arquivos/${encodedKey}?modo=visualizar`} title={`PDF: ${file.name}`} />
+      </section>
+      <section className="library-panel">
+        <p className="eyebrow">Texto extraído</p>
+        <h3>Páginas já processadas</h3>
+        {pdfState!.previewPages.length ? <div className="source-body">
+          {pdfState!.previewPages.map((page) => <section key={page.pageNumber} className="pdf-text-page">
+            <h4>Página {page.pageNumber}</h4>
+            <p>{page.content || "[Página sem texto selecionável]"}</p>
+          </section>)}
+          {pdfState!.hasMorePreview ? <p className="field-help">A prévia mostra as primeiras páginas processadas. O restante permanece armazenado página a página para busca, revisão e uso futuro pela Memória Reflexiva.</p> : null}
+        </div> : <p className="field-help">O texto aparecerá aqui conforme os primeiros lotes forem concluídos.</p>}
+      </section>
+    </> : <section className="library-panel">
       <p className="eyebrow">Conteúdo do documento</p>
-      {extraction.status === "ready" ? <>
-        <h3>{extraction.format === "docx" ? "Texto extraído do Word" : extraction.format === "pdf" ? "Texto extraído do PDF" : "Texto extraído"}</h3>
+      {extraction?.status === "ready" ? <>
+        <h3>{extraction.format === "docx" ? "Texto extraído do Word" : "Texto extraído"}</h3>
         {extraction.format === "docx" ? <p className="field-help">O aplicativo leu o texto principal do DOCX. Formatação visual, imagens e elementos complexos não alteram o arquivo original e não são reproduzidos nesta etapa.</p> : null}
-        {extraction.format === "pdf" ? <p className="field-help">Extração concluída em {extraction.pages ?? 0} {extraction.pages === 1 ? "página" : "páginas"}. A visualização e o arquivo original permanecem separados do texto derivado.</p> : null}
         {(extraction.normalizedLineEndings || extraction.removedBom) ? <p className="field-help">O texto foi normalizado apenas para visualização. O arquivo original não foi alterado.</p> : null}
         <div className="source-body">{extraction.input.content}</div>
       </> : <>
         <h3>Original salvo com segurança</h3>
-        <p>{extraction.message}</p>
-        <p className="field-help">TXT, Markdown, DOCX e PDFs com texto selecionável podem ser lidos automaticamente dentro dos limites seguros. PDFs digitalizados somente como imagem precisarão de OCR em uma etapa futura.</p>
+        <p>{extraction?.message}</p>
       </>}
-    </section>
+    </section>}
   </article>;
 }
