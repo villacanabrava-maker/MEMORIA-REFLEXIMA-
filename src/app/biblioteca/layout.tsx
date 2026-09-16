@@ -6,5 +6,5 @@ import "./importar/import.css";
 export const metadata = { title: "Biblioteca | Memória Reflexiva" };
 
 export default function LibraryLayout({ children }: { children: ReactNode }) {
-  return <AppShell active="biblioteca" title="Sua biblioteca" eyebrow="Fontes sob sua autoria"><LibraryTabs />{children}</AppShell>;
+  return <AppShell active="biblioteca" title="Minha Biblioteca" eyebrow="Seu acervo organizado"><LibraryTabs />{children}</AppShell>;
 }
