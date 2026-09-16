@@ -32,8 +32,11 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
 
   return <>
     <div className="library-toolbar">
-      <form className="search-form" action="/biblioteca" method="get"><div><label htmlFor="library-search">Buscar pelo título</label><input id="library-search" name="q" type="search" defaultValue={query} maxLength={200} placeholder="Uma ideia, uma leitura…" /></div><button className="workspace-button neutral" type="submit">Buscar</button>{query ? <Link className="workspace-button neutral" href="/biblioteca">Limpar</Link> : null}</form>
-      {files.status === "ready" ? <Link className="workspace-button primary" href="/biblioteca/arquivos/novo">＋ Adicionar arquivo</Link> : null}
+      <form className="search-form" action="/biblioteca" method="get"><div><label htmlFor="library-search">Buscar pelo título</label><input id="library-search" name="q" type="search" defaultValue={query} maxLength={200} placeholder="Uma ideia, uma leitura…" /></div><button className="workspace-button neutral" type="submit">Buscar título</button>{query ? <Link className="workspace-button neutral" href="/biblioteca">Limpar</Link> : null}</form>
+      <div className="workspace-actions">
+        <Link className="workspace-button neutral" href="/biblioteca/pesquisar">Pesquisar conteúdo</Link>
+        {files.status === "ready" ? <Link className="workspace-button primary" href="/biblioteca/arquivos/novo">＋ Adicionar arquivo</Link> : null}
+      </div>
     </div>
 
     {files.status === "ready" ? <section className="library-panel">
