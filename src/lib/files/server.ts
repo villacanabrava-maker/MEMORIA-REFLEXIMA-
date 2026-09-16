@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth/require-user";
 import { decodeTextFile, MAX_IMPORT_BYTES, type SourceInput } from "@/lib/sources/validation";
+import { extractDocxText, MAX_DOCX_PROCESS_BYTES } from "./docx";
 import { FILE_BUCKET, FILE_PAGE_SIZE, parseFileKey } from "./validation";
 
 export function filesEnabled(): boolean {
@@ -94,13 +95,16 @@ export async function getFile(key: string): Promise<FileResult> {
 }
 
 export type TextExtractionResult =
-  | { status: "ready"; input: SourceInput; normalizedLineEndings: boolean; removedBom: boolean }
+  | { status: "ready"; input: SourceInput; normalizedLineEndings: boolean; removedBom: boolean; format: "text" | "docx" }
   | { status: "unsupported" | "too_large" | "invalid" | "missing" | "error"; message: string };
 
 export async function extractStoredText(key: string): Promise<TextExtractionResult> {
   const parsed = parseFileKey(key);
   if (!parsed) return { status: "invalid", message: "O identificador deste arquivo é inválido." };
-  if (!/\.(txt|md)$/i.test(parsed.originalName)) return { status: "unsupported", message: "A visualização de conteúdo ainda está disponível somente para TXT e Markdown. O original continua preservado e disponível para download." };
+  const isText = /\.(txt|md)$/i.test(parsed.originalName);
+  const isDocx = /\.docx$/i.test(parsed.originalName);
+  if (!isText && !isDocx) return { status: "unsupported", message: "A visualização de conteúdo está disponível para TXT, Markdown e DOCX. O original continua preservado e disponível para download." };
+
   const { supabase, user } = await requireUser();
   if (!filesEnabled()) return { status: "error", message: "O armazenamento de arquivos ainda não está ativo neste ambiente." };
   const path = `${user.id}/${key}`;
@@ -110,13 +114,27 @@ export async function extractStoredText(key: string): Promise<TextExtractionResu
     const exact = listed.find((item) => item.name === key && item.id);
     if (!exact) return { status: "missing", message: "Este arquivo não foi encontrado na sua área privada." };
     const listedSize = typeof exact.metadata?.size === "number" ? exact.metadata.size : null;
-    if (listedSize !== null && listedSize > MAX_IMPORT_BYTES) return { status: "too_large", message: "Para visualizar o texto extraído, TXT/Markdown precisa ter até 400 KB. O original continua preservado." };
+    const processLimit = isDocx ? MAX_DOCX_PROCESS_BYTES : MAX_IMPORT_BYTES;
+    if (listedSize !== null && listedSize > processLimit) {
+      return { status: "too_large", message: isDocx ? "Para visualizar DOCX, o arquivo precisa ter até 8 MB. O original continua preservado." : "Para visualizar o texto extraído, TXT/Markdown precisa ter até 400 KB. O original continua preservado." };
+    }
+
     const { data, error } = await supabase.storage.from(FILE_BUCKET).download(path);
     if (error || !data) return { status: "error", message: "Não foi possível ler este arquivo agora." };
-    if (data.size > MAX_IMPORT_BYTES) return { status: "too_large", message: "Para visualizar o texto extraído, TXT/Markdown precisa ter até 400 KB. O original continua preservado." };
-    const decoded = decodeTextFile(parsed.originalName, new Uint8Array(await data.arrayBuffer()));
+    if (data.size > processLimit) {
+      return { status: "too_large", message: isDocx ? "Para visualizar DOCX, o arquivo precisa ter até 8 MB. O original continua preservado." : "Para visualizar o texto extraído, TXT/Markdown precisa ter até 400 KB. O original continua preservado." };
+    }
+    const bytes = new Uint8Array(await data.arrayBuffer());
+
+    if (isDocx) {
+      const extracted = extractDocxText(parsed.originalName, bytes);
+      if (!extracted.ok) return { status: extracted.code === "too_large" ? "too_large" : "invalid", message: extracted.message };
+      return { status: "ready", input: extracted.value, normalizedLineEndings: false, removedBom: false, format: "docx" };
+    }
+
+    const decoded = decodeTextFile(parsed.originalName, bytes);
     if (!decoded.ok) return { status: "invalid", message: decoded.message };
-    return { status: "ready", input: decoded.value, normalizedLineEndings: decoded.normalizedLineEndings, removedBom: decoded.removedBom };
+    return { status: "ready", input: decoded.value, normalizedLineEndings: decoded.normalizedLineEndings, removedBom: decoded.removedBom, format: "text" };
   } catch {
     return { status: "error", message: "A conexão foi interrompida durante a leitura. Nenhum texto foi alterado." };
   }
