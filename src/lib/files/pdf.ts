@@ -32,7 +32,6 @@ export async function extractPdfText(name: string, bytes: Uint8Array): Promise<P
   let pdf: Awaited<ReturnType<typeof getDocumentProxy>> | null = null;
   try {
     pdf = await timeout(getDocumentProxy(bytes, {
-      isEvalSupported: false,
       maxImageSize: MAX_PDF_IMAGE_PIXELS,
     }), PDF_PROCESS_TIMEOUT_MS);
 
