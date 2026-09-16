@@ -1,15 +1,24 @@
 import "server-only";
-import { extractText, getDocumentProxy } from "unpdf";
-import { characterCount, MAX_CONTENT, MAX_TITLE, type SourceInput } from "@/lib/sources/validation";
+import { getResolvedPDFJS } from "unpdf";
 
-export const MAX_PDF_PROCESS_BYTES = 8_000_000;
-export const MAX_PDF_PAGES = 80;
-export const PDF_PROCESS_TIMEOUT_MS = 10_000;
+export const PDF_BATCH_SIZE = 8;
+export const PDF_BATCH_TIMEOUT_MS = 20_000;
+export const MAX_PDF_PAGE_CHARACTERS = 120_000;
 const MAX_PDF_IMAGE_PIXELS = 16_777_216;
+const PDF_RANGE_CHUNK_BYTES = 65_536;
 
-type PdfTextResult =
-  | { ok: true; value: SourceInput; pages: number }
-  | { ok: false; code: "too_large" | "invalid" | "timeout"; message: string };
+export type PdfPageText = {
+  pageNumber: number;
+  content: string;
+  characterCount: number;
+};
+
+export type PdfBatchResult = {
+  totalPages: number;
+  startPage: number;
+  endPage: number;
+  pages: PdfPageText[];
+};
 
 function timeout<T>(promise: Promise<T>, milliseconds: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -21,47 +30,52 @@ function timeout<T>(promise: Promise<T>, milliseconds: number): Promise<T> {
   });
 }
 
-export async function extractPdfText(name: string, bytes: Uint8Array): Promise<PdfTextResult> {
-  if (bytes.byteLength < 5 || bytes.byteLength > MAX_PDF_PROCESS_BYTES) {
-    return { ok: false, code: "too_large", message: "Para extrair texto de PDF, o arquivo precisa ter até 8 MB. O original continua preservado." };
-  }
-  if (new TextDecoder("ascii").decode(bytes.subarray(0, 5)) !== "%PDF-") {
-    return { ok: false, code: "invalid", message: "O arquivo não possui uma assinatura PDF válida. O original não foi alterado." };
-  }
+function normalizePageText(items: Array<{ str?: string; hasEOL?: boolean }>): string {
+  return items
+    .filter((item) => typeof item.str === "string")
+    .map((item) => `${item.str ?? ""}${item.hasEOL ? "\n" : ""}`)
+    .join("")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/ ?\n ?/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
-  let pdf: Awaited<ReturnType<typeof getDocumentProxy>> | null = null;
+export async function extractPdfBatchFromUrl(
+  signedUrl: string,
+  requestedStartPage: number,
+  batchSize = PDF_BATCH_SIZE,
+): Promise<PdfBatchResult> {
+  const pdfjs = await getResolvedPDFJS();
+  const loadingTask = pdfjs.getDocument({
+    url: signedUrl,
+    disableFontFace: true,
+    useSystemFonts: true,
+    maxImageSize: MAX_PDF_IMAGE_PIXELS,
+    rangeChunkSize: PDF_RANGE_CHUNK_BYTES,
+  });
+
+  const pdf = await timeout(loadingTask.promise, PDF_BATCH_TIMEOUT_MS);
   try {
-    pdf = await timeout(getDocumentProxy(bytes, {
-      maxImageSize: MAX_PDF_IMAGE_PIXELS,
-    }), PDF_PROCESS_TIMEOUT_MS);
+    if (!Number.isSafeInteger(pdf.numPages) || pdf.numPages < 1) throw new Error("PDF_INVALID");
+    const startPage = Math.max(1, Math.min(requestedStartPage, pdf.numPages));
+    const safeBatch = Math.max(1, Math.min(batchSize, PDF_BATCH_SIZE));
+    const endPage = Math.min(pdf.numPages, startPage + safeBatch - 1);
+    const pages: PdfPageText[] = [];
 
-    if (pdf.numPages < 1) {
-      return { ok: false, code: "invalid", message: "O PDF não possui páginas legíveis." };
-    }
-    if (pdf.numPages > MAX_PDF_PAGES) {
-      return { ok: false, code: "too_large", message: `Para extração automática nesta etapa, o PDF pode ter até ${MAX_PDF_PAGES} páginas. O original continua preservado.` };
-    }
-
-    const extracted = await timeout(extractText(pdf, { mergePages: true }), PDF_PROCESS_TIMEOUT_MS);
-    const content = extracted.text.replace(/\r\n?/g, "\n").trim();
-    if (!content) {
-      return { ok: false, code: "invalid", message: "Este PDF não contém texto selecionável. PDFs digitalizados por imagem precisarão da etapa futura de OCR." };
-    }
-    if (content.includes("\0") || characterCount(content) > MAX_CONTENT) {
-      return { ok: false, code: "too_large", message: "O texto extraído ultrapassa 100.000 caracteres. O original continua preservado sem cortes." };
+    for (let pageNumber = startPage; pageNumber <= endPage; pageNumber += 1) {
+      const page = await timeout(pdf.getPage(pageNumber), PDF_BATCH_TIMEOUT_MS);
+      const content = await timeout(page.getTextContent(), PDF_BATCH_TIMEOUT_MS);
+      const text = normalizePageText(content.items as Array<{ str?: string; hasEOL?: boolean }>);
+      const characterCount = Array.from(text).length;
+      if (characterCount > MAX_PDF_PAGE_CHARACTERS) throw new Error("PDF_PAGE_TOO_LARGE");
+      pages.push({ pageNumber, content: text, characterCount });
+      page.cleanup();
     }
 
-    const stem = name.replace(/\.pdf$/i, "").trim();
-    const title = Array.from(stem || "PDF importado").slice(0, MAX_TITLE).join("");
-    return { ok: true, value: { title, content }, pages: extracted.totalPages };
-  } catch (error) {
-    if (error instanceof Error && error.message === "PDF_TIMEOUT") {
-      return { ok: false, code: "timeout", message: "A leitura deste PDF ultrapassou o tempo seguro de processamento. O original continua preservado." };
-    }
-    return { ok: false, code: "invalid", message: "Não foi possível extrair texto deste PDF com segurança. O original continua preservado." };
+    return { totalPages: pdf.numPages, startPage, endPage, pages };
   } finally {
-    if (pdf) {
-      try { await pdf.loadingTask.destroy(); } catch { /* O original não é afetado por falha ao liberar o parser. */ }
-    }
+    try { await pdf.destroy(); } catch { /* liberar o parser nao altera o original */ }
   }
 }
