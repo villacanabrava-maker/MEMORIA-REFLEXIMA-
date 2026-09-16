@@ -8,6 +8,10 @@ type EvidenceRow = {
   id: string;
   source_label: string;
   excerpt: string;
+  start_offset: number | null;
+  end_offset: number | null;
+  note: string | null;
+  source_updated_at: string | null;
   created_at: string;
   document_id: string;
 };
@@ -18,7 +22,7 @@ export default async function EvidencePage({ searchParams }: { searchParams: Pro
   const params = await searchParams;
   const { supabase, user } = await requireUser();
   const { data: evidence } = await supabase.from("library_evidence")
-    .select("id,source_label,excerpt,created_at,document_id")
+    .select("id,source_label,excerpt,start_offset,end_offset,note,source_updated_at,created_at,document_id")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(100);
@@ -35,17 +39,25 @@ export default async function EvidencePage({ searchParams }: { searchParams: Pro
       <div><p className="eyebrow">Conhecimento rastreável</p><h2>Evidências</h2></div>
       <Link className="workspace-button neutral" href="/biblioteca">← Biblioteca</Link>
     </div>
-    <p className="files-explanation">Cada evidência é copiada diretamente de uma página ou parte processada e mantém vínculo com o arquivo original.</p>
+    <p className="files-explanation">Cada evidência é derivada novamente da página ou parte armazenada no banco. Trechos selecionados mantêm seus offsets dentro da fonte e não podem ter o texto adulterado pelo cliente.</p>
     {params.status === "invalida" ? <p className="field-error" role="status">A origem desta evidência não pôde ser validada.</p> : null}
     {rows.length ? <ul className="source-grid">{rows.map((row) => {
       const document = byId.get(row.document_id);
+      const precise = row.start_offset !== null && row.end_offset !== null;
       return <li className="source-card" key={row.id}>
-        <p className="eyebrow">Evidência</p>
+        <div className="library-toolbar">
+          <p className="eyebrow">{precise ? "Trecho preciso" : "Fonte inteira"}</p>
+          {precise ? <span className="file-kind">{row.start_offset}–{row.end_offset}</span> : null}
+        </div>
         <h3>{row.source_label}</h3>
         <p>{row.excerpt.length > 800 ? `${row.excerpt.slice(0, 800)}…` : row.excerpt}</p>
-        <time dateTime={row.created_at}>{formatDate(row.created_at)}</time>
+        {row.note ? <p><strong>Minha observação:</strong> {row.note}</p> : null}
+        <div className="source-meta">
+          <span>Salva em <time dateTime={row.created_at}>{formatDate(row.created_at)}</time></span>
+          {row.source_updated_at ? <span>Fonte processada em <time dateTime={row.source_updated_at}>{formatDate(row.source_updated_at)}</time></span> : null}
+        </div>
         {document ? <Link className="source-open" href={`/biblioteca/arquivos/${encodeURIComponent(document.storage_key)}`}>Abrir origem →</Link> : null}
       </li>;
-    })}</ul> : <p>Nenhuma evidência salva ainda. Abra um documento processado e salve uma página ou parte como evidência.</p>}
+    })}</ul> : <p>Nenhuma evidência salva ainda. Abra um documento processado, selecione uma passagem e salve o trecho como evidência.</p>}
   </section>;
 }
