@@ -14,17 +14,19 @@ export type DashboardData = {
   evidence: number;
   memories: number;
   brainInsights: number;
+  reflections: number;
   recent: RecentItem[];
 };
 
 export async function getDashboardData(): Promise<DashboardData | null> {
   const { supabase, user } = await requireUser();
   try {
-    const [itemsCount, evidenceCount, memoryCount, brainCount, recentResult] = await Promise.all([
+    const [itemsCount, evidenceCount, memoryCount, brainCount, reflectionCount, recentResult] = await Promise.all([
       supabase.from("library_items").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       supabase.from("library_evidence").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       supabase.from("memory_nodes").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       supabase.from("brain_insights").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      supabase.from("reflections").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       supabase.from("library_items")
         .select("id,title,kind,document_id,source_id,updated_at")
         .eq("user_id", user.id)
@@ -32,7 +34,7 @@ export async function getDashboardData(): Promise<DashboardData | null> {
         .limit(3),
     ]);
 
-    if (itemsCount.error || evidenceCount.error || memoryCount.error || brainCount.error || recentResult.error) return null;
+    if (itemsCount.error || evidenceCount.error || memoryCount.error || brainCount.error || reflectionCount.error || recentResult.error) return null;
     const rows = recentResult.data ?? [];
     const documentIds = rows.flatMap((row) => row.document_id ? [row.document_id] : []);
     const paths = new Map<string, string>();
@@ -60,6 +62,7 @@ export async function getDashboardData(): Promise<DashboardData | null> {
       evidence: evidenceCount.count ?? 0,
       memories: memoryCount.count ?? 0,
       brainInsights: brainCount.count ?? 0,
+      reflections: reflectionCount.count ?? 0,
       recent,
     };
   } catch {
